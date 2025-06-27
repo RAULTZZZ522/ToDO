@@ -15,7 +15,7 @@
   <t-drawer
     style="padding-top: {{statusHeight}}px;"
     visible="{{visible}}"
-    items="{{sidebar}}"
+    items="{{sidebar}}"`
     placement="left"
     title="页面目录"
     bind:item-click="itemClick"

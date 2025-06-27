@@ -1,0 +1,18 @@
+<!--pages/userConsole/userConsole.wxml-->
+<view class="container">
+
+  <view class="list">
+    <view class="list-item" bindtap="testCgi">
+      <text class="request-text">用户 openid 为：{{openid}}</text>
+    </view>
+  </view>
+
+  <view class="guide">
+    <text class="headline">云开发入门</text>
+    <text class="p">1. 打开云控制台，开通云开发服务</text>
+    <text class="p">2. 创建数据库集合</text>
+    <text class="p">3. 创建云函数</text>
+    <text class="p">4. 创建存储桶</text>
+  </view>
+
+</view> 
