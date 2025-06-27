@@ -1,5 +1,7 @@
 {
   "description": "项目配置文件，详见文档：https://developers.weixin.qq.com/miniprogram/dev/devtools/projectconfig.html",
+  "miniprogramRoot": "",
+  "cloudfunctionRoot": "cloudfunctions/",
   "packOptions": {
     "ignore": [],
     "include": []
@@ -12,7 +14,7 @@
     "coverView": true,
     "es6": true,
     "postcss": true,
-    "compileHotReLoad": false,
+    "compileHotReLoad": true,
     "lazyloadPlaceholderEnable": false,
     "preloadBackgroundData": false,
     "minified": true,
@@ -21,7 +23,7 @@
     "uglifyFileName": false,
     "uploadWithSourceMap": true,
     "useIsolateContext": true,
-    "nodeModules": false,
+    "nodeModules": true,
     "enhance": true,
     "useMultiFrameRuntime": true,
     "useApiHook": true,
@@ -33,74 +35,19 @@
     "minifyWXSS": true,
     "showES6CompileOption": false,
     "minifyWXML": true,
-    "useStaticServer": true,
-    "checkInvalidKey": true,
     "babelSetting": {
       "ignore": [],
       "disablePlugins": [],
       "outputPath": ""
     },
-    "disableUseStrict": false,
-    "useCompilerPlugins": [
-      "less"
-    ],
     "condition": false,
     "ignoreUploadUnusedFiles": true
   },
   "compileType": "miniprogram",
-  "libVersion": "latest",
+  "libVersion": "3.8.9",
   "appid": "wxd98a8015b096ab89",
-  "projectname": "miniprogram-starter",
-  "condition": {
-    "miniprogram": {
-      "list": [
-        {
-          "name": "login",
-          "pathName": "pages/login/login",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "loginCode",
-          "pathName": "pages/loginCode/loginCode",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "my",
-          "pathName": "pages/my/index",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "info-edit",
-          "pathName": "pages/my/info-edit/index",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "dataCenter",
-          "pathName": "pages/dataCenter/index",
-          "query": "",
-          "scene": null
-        },
-        {
-          "name": "release",
-          "pathName": "pages/release/index",
-          "query": "",
-          "launchMode": "default",
-          "scene": null
-        },
-        {
-          "name": "setting",
-          "pathName": "pages/setting/index",
-          "query": "",
-          "launchMode": "default",
-          "scene": null
-        }
-      ]
-    }
-  },
+  "projectname": "云开发小程序",
+  "condition": {},
   "editorSetting": {
     "tabIndent": "insertSpaces",
     "tabSize": 2
