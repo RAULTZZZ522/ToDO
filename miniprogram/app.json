@@ -1,0 +1,42 @@
+{
+  "pages": [
+    "pages/todoList/index",
+    "pages/aimList/index",
+    "pages/statistics/index",
+    "pages/userCenter/index"
+  ],
+  "window": {
+    "backgroundColor": "#F6F6F6",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#F6F6F6",
+    "navigationBarTitleText": "云开发 QuickStart",
+    "navigationBarTextStyle": "black"
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "tabBar": {
+    "color": "#888888",
+    "selectedColor": "#007aff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/todoList/index",
+        "text": "日程"
+      },
+      {
+        "pagePath": "pages/aimList/index",
+        "text": "目标"
+      },
+      {
+        "pagePath": "pages/statistics/index",
+        "text": "统计"
+      },
+      {
+        "pagePath": "pages/userCenter/index",
+        "text": "我的"
+      }
+    ]
+  }
+}

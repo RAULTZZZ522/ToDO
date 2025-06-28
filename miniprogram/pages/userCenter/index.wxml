@@ -1,0 +1,10 @@
+<view class="user-center">
+  <view class="user-info">
+    <image class="avatar" src="../../images/icons/usercenter.png"></image>
+    <text class="nickname">微信用户</text>
+  </view>
+  <view class="settings">
+    <button class="setting-btn">账号设置</button>
+    <button class="setting-btn">关于应用</button>
+  </view>
+</view> 

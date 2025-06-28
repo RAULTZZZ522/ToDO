@@ -1,0 +1,11 @@
+<view class="aim-list">
+  <view class="aim-item" wx:for="{{aims}}" wx:key="_id">
+    <view class="aim-header">
+      <text class="aim-title">{{item.name}}</text>
+      <text class="aim-desc">{{item.description}}</text>
+    </view>
+    <view class="todo-list" wx:for="{{item.todos}}" wx:key="_id">
+      <text class="todo-content">• {{todo.content}}</text>
+    </view>
+  </view>
+</view> 

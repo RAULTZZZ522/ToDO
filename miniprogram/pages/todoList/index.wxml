@@ -1,0 +1,26 @@
+<view class="category">
+  <view class="category-header">
+    <text>Category</text>
+    <view class="category-icons">
+      <button class="icon-btn"><!-- √ --></button>
+      <button class="icon-btn"><!-- ⏰ --></button>
+    </view>
+  </view>
+  <view class="task-card">
+    <text>TASK</text>
+    <button class="start-btn">START</button>
+  </view>
+</view>
+<view class="category">
+  <view class="category-header">
+    <text>Category 2</text>
+    <view class="category-icons">
+      <button class="icon-btn">+</button>
+      <button class="icon-btn">+</button>
+    </view>
+  </view>
+  <view class="task-card" wx:for="{{tasks}}" wx:key="index">
+    <text>TASK</text>
+    <button class="start-btn">START</button>
+  </view>
+</view> 

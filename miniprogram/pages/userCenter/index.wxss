@@ -1,0 +1,34 @@
+.user-center {
+  padding: 40rpx 24rpx;
+}
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx;
+}
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  margin-bottom: 16rpx;
+}
+.nickname {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  align-items: center;
+}
+.setting-btn {
+  width: 80%;
+  border: 1rpx solid #888;
+  border-radius: 8rpx;
+  padding: 16rpx 0;
+  background: #fff;
+  font-size: 32rpx;
+} 
