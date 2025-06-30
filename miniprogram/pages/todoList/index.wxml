@@ -1,26 +1,87 @@
-<view class="category">
-  <view class="category-header">
-    <text>Category</text>
-    <view class="category-icons">
-      <button class="icon-btn"><!-- √ --></button>
-      <button class="icon-btn"><!-- ⏰ --></button>
+<view class="container">
+  <view class="header">
+    <view class="title">我的日程</view>
+    <view class="sort-controls">
+      <view class="sort-btn {{sortBy === 'updateTime' ? 'active' : ''}}" bindtap="toggleSort" data-type="updateTime">
+        <text>时间</text>
+        <text class="sort-icon">{{sortBy === 'updateTime' ? (sortAsc ? '↑' : '↓') : ''}}</text>
+      </view>
+      <view class="sort-btn {{sortBy === 'importance' ? 'active' : ''}}" bindtap="toggleSort" data-type="importance">
+        <text>重要性</text>
+        <text class="sort-icon">{{sortBy === 'importance' ? (sortAsc ? '↑' : '↓') : ''}}</text>
+      </view>
     </view>
   </view>
-  <view class="task-card">
-    <text>TASK</text>
-    <button class="start-btn">START</button>
-  </view>
-</view>
-<view class="category">
-  <view class="category-header">
-    <text>Category 2</text>
-    <view class="category-icons">
-      <button class="icon-btn">+</button>
-      <button class="icon-btn">+</button>
+
+  <!-- Todo list -->
+  <view class="todo-list">
+    <view wx:if="{{loading}}" class="loading-state">
+      <text>加载中...</text>
+    </view>
+    <view wx:elif="{{!todos.length}}" class="empty-state">
+      <text>还没有日程，点击下方按钮添加</text>
+    </view>
+    <view wx:for="{{todos}}" wx:key="_id" class="todo-card {{item.completed ? 'completed' : ''}}">
+      <view class="todo-checkbox" bindtap="toggleComplete" data-id="{{item._id}}" data-completed="{{item.completed}}">
+        <icon type="{{item.completed ? 'success' : 'circle'}}" size="20" color="{{item.completed ? '#ff6b6b' : '#888'}}"></icon>
+      </view>
+      <view class="todo-content">
+        <view class="todo-title {{item.completed ? 'completed-text' : ''}}">{{item.title}}</view>
+        <view class="todo-description {{item.completed ? 'completed-text' : ''}}" wx:if="{{item.description}}">{{item.description}}</view>
+        <view class="todo-meta">
+          <view class="todo-time">{{item.updateTime ? '更新于: ' : '创建于: '}}{{item.updateTime || item.createTime}}</view>
+          <view class="todo-importance">
+            <text>重要度:</text>
+            <view class="importance-dots">
+              <view wx:for="{{5}}" wx:for-index="idx" wx:for-item="dot" wx:key="idx" 
+                class="importance-dot {{idx < item.importance ? 'active' : ''}}"></view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="todo-actions">
+        <view class="todo-action delete-btn" bindtap="deleteTodo" data-id="{{item._id}}">
+          <icon type="cancel" size="20" color="#ff6b6b"></icon>
+        </view>
+      </view>
     </view>
   </view>
-  <view class="task-card" wx:for="{{tasks}}" wx:key="index">
-    <text>TASK</text>
-    <button class="start-btn">START</button>
+
+  <!-- Add button -->
+  <view class="add-btn" bindtap="showAddModal">+</view>
+
+  <!-- Add todo modal -->
+  <view class="modal-mask" wx:if="{{showAddModal}}" bindtap="hideAddModal"></view>
+  <view class="modal" wx:if="{{showAddModal}}">
+    <view class="modal-header">
+      <text>添加新日程</text>
+    </view>
+    <view class="modal-body">
+      <view class="input-group">
+        <text class="input-label">标题</text>
+        <input class="input" placeholder="输入标题" value="{{newTodo.title}}" bindinput="onTitleInput" />
+      </view>
+      <view class="input-group">
+        <text class="input-label">描述</text>
+        <textarea class="textarea" placeholder="输入描述（可选）" value="{{newTodo.description}}" bindinput="onDescriptionInput"></textarea>
+      </view>
+      <view class="input-group">
+        <text class="input-label">重要程度</text>
+        <view class="importance-selector">
+          <view 
+            wx:for="{{5}}" 
+            wx:key="index" 
+            class="importance-option {{newTodo.importance >= index+1 ? 'active' : ''}}"
+            bindtap="changeImportance"
+            data-level="{{index+1}}">
+            {{index+1}}
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="modal-footer">
+      <button class="btn cancel-btn" bindtap="hideAddModal">取消</button>
+      <button class="btn confirm-btn" bindtap="saveTodo">保存</button>
+    </view>
   </view>
 </view> 
