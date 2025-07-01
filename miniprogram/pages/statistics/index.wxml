@@ -1,14 +1,84 @@
-<view class="statistics">
-  <view class="stat-item">
-    <text class="stat-title">今日完成日程</text>
-    <text class="stat-value">3</text>
+<view class="stats-container">
+  <!-- 累计专注统计 -->
+  <view class="stats-card">
+    <view class="card-title">累计专注</view>
+    <view class="stats-grid">
+      <view class="stat-item">
+        <text class="stat-value">{{totalCount}}</text>
+        <text class="stat-label">次数</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-value">{{totalMinutes}}</text>
+        <text class="stat-label">时长(分钟)</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-value">{{dailyAverage}}</text>
+        <text class="stat-label">日均时长(分钟)</text>
+      </view>
+    </view>
   </view>
-  <view class="stat-item">
-    <text class="stat-title">本周专注时长</text>
-    <text class="stat-value">5小时</text>
+  
+  <!-- 当日专注 -->
+  <view class="stats-card">
+    <view class="card-header">
+      <text class="card-title">当日专注</text>
+      <view class="date-selector">
+        <text class="date-arrow" bindtap="changeDate" data-direction="prev">◀</text>
+        <text class="current-date">{{currentDate}}</text>
+        <text class="date-arrow" bindtap="changeDate" data-direction="next">▶</text>
+      </view>
+    </view>
+    <view class="stats-grid">
+      <view class="stat-item">
+        <text class="stat-value">{{dailyCount}}</text>
+        <text class="stat-label">次数</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-value">{{dailyMinutes}}</text>
+        <text class="stat-label">时长(分钟)</text>
+      </view>
+    </view>
   </view>
-  <view class="stat-item">
-    <text class="stat-title">累计完成</text>
-    <text class="stat-value">42</text>
+  
+  <!-- 专注分布 -->
+  <view class="stats-card">
+    <view class="card-header">
+      <text class="card-title">专注时长分布</text>
+      <view class="share-button" bindtap="shareFocusData">分享</view>
+    </view>
+    
+    <!-- 分布类型选择器 -->
+    <view class="tab-selector">
+      <view class="tab-item {{tabIndex === 0 ? 'active' : ''}}" bindtap="switchDistributionType" data-type="day" data-index="0">
+        日
+      </view>
+      <view class="tab-item {{tabIndex === 1 ? 'active' : ''}}" bindtap="switchDistributionType" data-type="week" data-index="1">
+        周
+      </view>
+      <view class="tab-item {{tabIndex === 2 ? 'active' : ''}}" bindtap="switchDistributionType" data-type="month" data-index="2">
+        月
+      </view>
+      <view class="tab-item {{tabIndex === 3 ? 'active' : ''}}" bindtap="switchDistributionType" data-type="custom" data-index="3">
+        自定义
+      </view>
+    </view>
+    
+    <!-- 图表区域 -->
+    <view class="chart-container">
+      <canvas canvas-id="columnCanvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"></canvas>
+      <view wx:if="{{chartLoading}}" class="loading-overlay">
+        <text>加载中...</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 查看专注记录按钮 -->
+  <view class="view-records-btn" bindtap="viewFocusRecords">
+    查看专注记录
+  </view>
+  
+  <!-- 加载提示 -->
+  <view wx:if="{{loading}}" class="loading-container">
+    <text>数据加载中...</text>
   </view>
 </view> 
