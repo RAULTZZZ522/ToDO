@@ -1,0 +1,61 @@
+<view class="timer-page">
+  <view class="header">任务时钟</view>
+  
+  <!-- 任务选择 -->
+  <view class="task-selector">
+    <view class="selector-content">
+      <view class="task-name">{{title}}</view>
+      <view class="arrow">▼</view>
+    </view>
+  </view>
+  
+  <!-- 主计时区域 -->
+  <view class="timer-container">
+    <!-- 进度圆环 -->
+    <view class="progress-ring">
+      <canvas canvas-id="progressCanvas" class="progress-canvas"></canvas>
+    </view>
+    
+    <!-- 白色圆圈 -->
+    <view class="timer-circle">
+      <view class="timer-content">
+        <view class="count-area">
+          <view class="timer-icon">⏱️</view>
+          <text class="count-text">{{count}}/{{total}}</text>
+        </view>
+        <view class="time-display">{{formatTime(timeLeft)}}</view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 控制按钮 -->
+  <view class="control-area">
+    <button class="btn stop-btn" bindtap="onStop">
+      <view class="stop-icon">■</view>
+      <text>停止</text>
+    </button>
+    
+    <button class="btn pause-btn" bindtap="onPause">
+      <view class="pause-icon">{{paused ? '▶' : '⏸'}}</view>
+      <text>{{paused ? '继续' : '暂停'}}</text>
+    </button>
+  </view>
+  
+  <!-- 完成按钮 -->
+  <button class="finish-btn" bindtap="onFinish">
+    <view class="check-icon">✓</view>
+    <text>立即完成</text>
+  </button>
+  
+  <!-- 底部选项区域 -->
+  <view class="bottom-options">
+    <view class="option">
+      <view class="option-icon">⌛</view>
+      <text class="option-text">定时器模式</text>
+    </view>
+    <view class="option">
+      <view class="option-icon">🔈</view>
+      <text class="option-text">白噪声</text>
+    </view>
+  </view>
+</view> 

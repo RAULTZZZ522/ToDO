@@ -26,29 +26,47 @@
         <icon type="{{item.completed ? 'success' : 'circle'}}" size="20" color="{{item.completed ? '#ff6b6b' : '#888'}}"></icon>
       </view>
       <view class="todo-content">
-        <view class="todo-title {{item.completed ? 'completed-text' : ''}}">{{item.title}}</view>
+        <view class="todo-header">
+          <view class="todo-title {{item.completed ? 'completed-text' : ''}}">{{item.title}}</view>
+          <view class="todo-category" wx:if="{{item.category}}">{{item.category}}</view>
+        </view>
         <view class="todo-description {{item.completed ? 'completed-text' : ''}}" wx:if="{{item.description}}">{{item.description}}</view>
         <view class="todo-meta">
           <view class="todo-time">{{item.updateTime ? '更新于: ' : '创建于: '}}{{item.updateTime || item.createTime}}</view>
-          <view class="todo-importance">
-            <text>重要度:</text>
-            <view class="importance-dots">
-              <view wx:for="{{5}}" wx:for-index="idx" wx:for-item="dot" wx:key="idx" 
-                class="importance-dot {{idx < item.importance ? 'active' : ''}}"></view>
+          <view class="todo-info-row">
+            <view class="todo-importance">
+              <text>重要度:</text>
+              <view class="importance-dots">
+                <view wx:for="{{5}}" wx:for-index="idx" wx:for-item="dot" wx:key="idx" 
+                  class="importance-dot {{idx < item.importance ? 'active' : ''}}"></view>
+              </view>
             </view>
           </view>
         </view>
       </view>
       <view class="todo-actions">
+        <view class="todo-action tomato-start-btn" bindtap="startTomato" data-id="{{item._id}}">
+          <icon type="waiting" size="16" color="#a084e8"></icon>
+          <text>开始番茄钟</text>
+        </view>
         <view class="todo-action delete-btn" bindtap="deleteTodo" data-id="{{item._id}}">
           <icon type="cancel" size="20" color="#ff6b6b"></icon>
         </view>
+      </view>
+      
+      <!-- 番茄钟完成次数显示在右下角 -->
+      <view class="tomato-counter" wx:if="{{item.tomatoCount && item.tomatoCount > 0}}">
+        <text class="tomato-emoji">🍅</text>
+        <text class="tomato-count-text">{{item.tomatoCount}}</text>
+        <text class="tomato-time-text" wx:if="{{item.tomatoTotalTime && item.tomatoTotalTime > 0}}">{{item.tomatoTotalTime}}分钟</text>
       </view>
     </view>
   </view>
 
   <!-- Add button -->
-  <view class="add-btn" bindtap="showAddModal">+</view>
+  <view class="add-btn" bindtap="showAddModal">
+    <text>+</text>
+  </view>
 
   <!-- Add todo modal -->
   <view class="modal-mask" wx:if="{{showAddModal}}" bindtap="hideAddModal"></view>
@@ -82,6 +100,16 @@
     <view class="modal-footer">
       <button class="btn cancel-btn" bindtap="hideAddModal">取消</button>
       <button class="btn confirm-btn" bindtap="saveTodo">保存</button>
+    </view>
+  </view>
+
+  <!-- 番茄钟计时条 -->
+  <view class="tomato-timer-bar {{showTomatoBar ? 'show' : ''}}" wx:if="{{tomatoTimer}}">
+    <view class="tomato-timer-info">
+      <view class="tomato-timer-text">🍅 {{formatTomatoTime(tomatoTimeLeft)}}</view>
+    </view>
+    <view class="tomato-timer-actions">
+      <view class="tomato-timer-btn stop-btn" bindtap="stopTomato">结束</view>
     </view>
   </view>
 </view> 
