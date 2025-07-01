@@ -1,23 +1,156 @@
-.statistics {
-  padding: 40rpx 24rpx;
+page {
+  background-color: #f5f7fa;
 }
-.stat-item {
-  background: #fff;
-  border-radius: 16rpx;
-  margin-bottom: 32rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
-  padding: 32rpx 20rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+
+.stats-container {
+  padding: 20rpx;
 }
-.stat-title {
+
+/* 统计卡片通用样式 */
+.stats-card {
+  background: #ffffff;
+  border-radius: 12rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+}
+
+.card-title {
   font-size: 32rpx;
-  color: #888;
-  margin-bottom: 12rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 20rpx;
 }
+
+/* 统计网格 */
+.stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+}
+
 .stat-value {
+  display: block;
   font-size: 48rpx;
-  font-weight: bold;
-  color: #007aff;
+  color: #ff6b6b;
+  font-weight: 600;
+  margin-bottom: 10rpx;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 卡片标题栏 */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+/* 日期选择器 */
+.date-selector {
+  display: flex;
+  align-items: center;
+  font-size: 28rpx;
+}
+
+.date-arrow {
+  color: #ff6b6b;
+  padding: 0 10rpx;
+}
+
+.current-date {
+  margin: 0 10rpx;
+  color: #333;
+}
+
+/* 分享按钮 */
+.share-button {
+  background-color: #ff6b6b;
+  color: white;
+  font-size: 24rpx;
+  padding: 10rpx 20rpx;
+  border-radius: 30rpx;
+}
+
+/* 标签选择器 */
+.tab-selector {
+  display: flex;
+  background: #f2f2f2;
+  border-radius: 8rpx;
+  margin: 20rpx 0 30rpx;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 0;
+  font-size: 28rpx;
+  color: #666;
+}
+
+.tab-item.active {
+  background: #ff6b6b;
+  color: white;
+  border-radius: 8rpx;
+}
+
+/* 图表容器 */
+.chart-container {
+  position: relative;
+  height: 400rpx;
+  width: 100%;
+}
+
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 查看记录按钮 */
+.view-records-btn {
+  background: #ff6b6b;
+  color: white;
+  padding: 20rpx 0;
+  text-align: center;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+  margin-top: 30rpx;
+}
+
+/* 加载遮罩 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #666;
+  font-size: 28rpx;
+}
+
+.loading-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
 } 

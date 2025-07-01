@@ -18,7 +18,7 @@
   "lazyCodeLoading": "requiredComponents",
   "tabBar": {
     "color": "#888888",
-    "selectedColor": "#007aff",
+    "selectedColor": "#ff6b6b",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
