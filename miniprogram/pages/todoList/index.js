@@ -3,6 +3,8 @@ Page({
     todos: [],
     categories: ['学习', '工作', '运动', '爱好', '生活', '其他'],
     showAddModal: false,
+    showEditModal: false,
+    editingTodo: null,
     newTodo: {
       title: '',
       description: '',
@@ -14,11 +16,8 @@ Page({
     tomatoTimeLeft: 0,
     tomatoRunningId: null,
     showTomatoBar: false,
-    tomatoTotalTime: 0,
     needRefresh: false,
-    lastUpdatedTodoId: null,
-    lastUpdatedTomatoCount: null,
-    lastUpdatedTomatoTotalTime: null
+    lastUpdatedTodoId: null
   },
 
   onLoad: function() {
@@ -32,34 +31,13 @@ Page({
     if (this.data.needRefresh && this.data.lastUpdatedTodoId) {
       console.log('检测到需要刷新，更新特定todo的tomatoCount和tomatoTotalTime');
       
-      // 找到需要更新的todo
-      const todos = this.data.todos;
-      const updatedTodos = todos.map(todo => {
-        if (todo._id === this.data.lastUpdatedTodoId) {
-          // 只更新提供的字段
-          if (this.data.lastUpdatedTomatoCount !== undefined && this.data.lastUpdatedTomatoCount !== null) {
-            console.log(`更新 ${todo.title} 的番茄钟计数为 ${this.data.lastUpdatedTomatoCount}`);
-            todo.tomatoCount = this.data.lastUpdatedTomatoCount;
-          }
-          
-          if (this.data.lastUpdatedTomatoTotalTime !== undefined && this.data.lastUpdatedTomatoTotalTime !== null) {
-            console.log(`更新 ${todo.title} 的总计时为 ${this.data.lastUpdatedTomatoTotalTime} 分钟`);
-            todo.tomatoTotalTime = this.data.lastUpdatedTomatoTotalTime;
-          }
-        }
-        return todo;
-      });
+      // 这里改为重新加载所有数据，确保从数据库获取最新状态
+      this.loadTodos();
       
-      // 更新界面
+      // 清除刷新标记
       this.setData({
-        todos: updatedTodos,
         needRefresh: false,
-        lastUpdatedTodoId: null,
-        lastUpdatedTomatoCount: null,
-        lastUpdatedTomatoTotalTime: null
-      }, () => {
-        console.log('局部更新完成，排序中...');
-        this.sortTodos();
+        lastUpdatedTodoId: null
       });
     } else {
       // 正常加载全部数据
@@ -86,11 +64,7 @@ Page({
       
       const result = res.result;
       if (result.code === 0) {
-        // 打印原始数据中的字段
-        console.log('原始数据中的字段:');
-        result.data.forEach(todo => {
-          console.log(`${todo.title}: tomatoCount = ${todo.tomatoCount}, tomatoTotalTime = ${todo.tomatoTotalTime}, category = ${todo.category}`);
-        });
+        console.log('从数据库获取的原始数据:', result.data);
         
         // 格式化日期并确保字段存在
         const todos = result.data.map(todo => {
@@ -102,20 +76,11 @@ Page({
             todo.updateTime = this.formatDate(todo.updateTime);
           }
           
-          // 确保tomatoCount字段存在且为数字
-          if (todo.tomatoCount === undefined || todo.tomatoCount === null) {
-            todo.tomatoCount = 0;
+          // 确保tomatoDuration字段存在
+          if (todo.tomatoDuration === undefined || todo.tomatoDuration === null) {
+            todo.tomatoDuration = 25; // 默认25分钟
           } else {
-            // 确保是数字类型
-            todo.tomatoCount = Number(todo.tomatoCount);
-          }
-          
-          // 确保tomatoTotalTime字段存在且为数字
-          if (todo.tomatoTotalTime === undefined || todo.tomatoTotalTime === null) {
-            todo.tomatoTotalTime = 0;
-          } else {
-            // 确保是数字类型
-            todo.tomatoTotalTime = Number(todo.tomatoTotalTime);
+            todo.tomatoDuration = Number(todo.tomatoDuration);
           }
           
           // 确保category字段存在
@@ -123,7 +88,11 @@ Page({
             todo.category = '学习';
           }
           
-          console.log(`处理后 Todo ${todo.title} 的 tomatoCount: ${todo.tomatoCount}, tomatoTotalTime: ${todo.tomatoTotalTime}, category: ${todo.category}`);
+          console.log(`处理后 Todo ${todo.title}:`, {
+            category: todo.category,
+            tomatoDuration: todo.tomatoDuration
+          });
+          
           return todo;
         });
         
@@ -131,15 +100,6 @@ Page({
         this.setData({ todos: todos }, () => {
           console.log('数据已设置，排序中...');
           this.sortTodos();
-          
-          // 检查字段是否被正确设置
-          setTimeout(() => {
-            const todos = this.data.todos;
-            console.log('页面渲染后检查数据:');
-            todos.forEach(todo => {
-              console.log(`${todo.title}: tomatoCount = ${todo.tomatoCount}, tomatoTotalTime = ${todo.tomatoTotalTime}, category = ${todo.category}`);
-            });
-          }, 500);
         });
       } else {
         wx.showToast({
@@ -165,39 +125,21 @@ Page({
     
     console.log('开始番茄钟，当前todo:', todo);
     
-    // 确保tomatoCount是数字
-    let tomatoCount = 0;
-    if (todo.tomatoCount !== undefined && todo.tomatoCount !== null) {
-      tomatoCount = Number(todo.tomatoCount);
-    }
+    // 设置需要刷新的标记
+    this.setData({
+      needRefresh: false,
+      lastUpdatedTodoId: id
+    });
     
-    // 确保tomatoTotalTime是数字
-    let tomatoTotalTime = 0;
-    if (todo.tomatoTotalTime !== undefined && todo.tomatoTotalTime !== null) {
-      tomatoTotalTime = Number(todo.tomatoTotalTime);
-    }
-    
-    console.log(`准备传递的番茄钟计数: ${tomatoCount}, 总计时: ${tomatoTotalTime}, 类型: ${typeof tomatoCount}`);
-    console.log('类别:', todo.category || '无类别');
-    
-    // 准备传递给番茄钟页面的参数
+    // 跳转到番茄钟页面
     const title = encodeURIComponent(todo.title);
     const duration = todo.tomatoDuration || 25;
     const category = encodeURIComponent(todo.category || '');
     
-    // 设置需要刷新的标记
-    this.setData({
-      needRefresh: false,
-      lastUpdatedTodoId: id,
-      lastUpdatedTomatoCount: tomatoCount,
-      lastUpdatedTomatoTotalTime: tomatoTotalTime
-    });
-    
-    // 跳转到番茄钟页面
-    console.log(`跳转到番茄钟页面: /pages/tomatoTimer/index?title=${title}&duration=${duration}&count=${tomatoCount}&totalTime=${tomatoTotalTime}&id=${id}&category=${category}`);
+    console.log(`跳转到番茄钟页面: /pages/tomatoTimer/index?title=${title}&duration=${duration}&id=${id}&category=${category}`);
     
     wx.navigateTo({
-      url: `/pages/tomatoTimer/index?title=${title}&duration=${duration}&count=${tomatoCount}&totalTime=${tomatoTotalTime}&id=${id}&category=${category}`,
+      url: `/pages/tomatoTimer/index?title=${title}&duration=${duration}&id=${id}&category=${category}`,
       fail: function(err) {
         console.error('跳转番茄钟页面失败:', err);
         wx.showToast({
@@ -268,7 +210,6 @@ Page({
         description: '',
         importance: 3,
         tomatoDuration: 25,
-        tomatoCount: 0,
         category: '学习'
       }
     });
@@ -304,7 +245,7 @@ Page({
 
   // Save new todo
   saveTodo: function() {
-    const { title, description, importance, tomatoDuration, tomatoCount, category } = this.data.newTodo;
+    const { title, description, importance, tomatoDuration, category } = this.data.newTodo;
     
     if (!title.trim()) {
       wx.showToast({
@@ -324,7 +265,6 @@ Page({
       description: description.trim(),
       importance: importance,
       tomatoDuration: tomatoDuration,
-      tomatoCount: tomatoCount,
       category: category
     });
 
@@ -336,7 +276,6 @@ Page({
         description: description.trim(),
         importance: importance,
         tomatoDuration: tomatoDuration,
-        tomatoCount: tomatoCount,
         category: category
       }
     }).then(res => {
@@ -515,6 +454,114 @@ Page({
     
     wx.navigateTo({
       url: `/pages/tomatoTimer/index?id=${id}&title=${encodeURIComponent(title)}&category=${category || ''}&count=${tomatoCount}&totalTime=${tomatoTotalTime}`
+    });
+  },
+
+  // 显示编辑弹窗
+  showEditModal: function(e) {
+    const todo = e.currentTarget.dataset.todo;
+    // 创建一个副本，避免直接修改原对象
+    const editingTodo = {
+      _id: todo._id,
+      title: todo.title,
+      description: todo.description || '',
+      importance: todo.importance || 3,
+      category: todo.category || '学习',
+      tomatoDuration: todo.tomatoDuration || 25,
+      completed: todo.completed || false
+    };
+    
+    this.setData({
+      showEditModal: true,
+      editingTodo: editingTodo
+    });
+  },
+
+  // 隐藏编辑弹窗
+  hideEditModal: function() {
+    this.setData({
+      showEditModal: false,
+      editingTodo: null
+    });
+  },
+
+  // 编辑弹窗输入绑定
+  onEditTitleInput: function(e) {
+    this.setData({ 'editingTodo.title': e.detail.value });
+  },
+
+  onEditDescriptionInput: function(e) {
+    this.setData({ 'editingTodo.description': e.detail.value });
+  },
+
+  changeEditImportance: function(e) {
+    const level = parseInt(e.currentTarget.dataset.level);
+    this.setData({ 'editingTodo.importance': level });
+  },
+
+  onEditCategoryChange: function(e) {
+    this.setData({ 'editingTodo.category': this.data.categories[e.detail.value] });
+  },
+
+  onEditTomatoDurationInput: function(e) {
+    this.setData({ 'editingTodo.tomatoDuration': Number(e.detail.value) });
+  },
+
+  // 更新日程
+  updateTodo: function() {
+    const { _id, title, description, importance, category, tomatoDuration } = this.data.editingTodo;
+    
+    if (!title.trim()) {
+      wx.showToast({
+        title: '请输入标题',
+        icon: 'none'
+      });
+      return;
+    }
+
+    wx.showLoading({
+      title: '保存中',
+    });
+
+    console.log('Updating todo with ID:', _id);
+    
+    wx.cloud.callFunction({
+      name: 'todoModel',
+      data: {
+        type: 'updateTodo',
+        id: _id,
+        title: title.trim(),
+        description: description.trim(),
+        importance: importance,
+        tomatoDuration: tomatoDuration,
+        category: category
+      }
+    }).then(res => {
+      const result = res.result;
+      if (result.code === 0) {
+        wx.showToast({
+          title: '更新成功'
+        });
+        this.setData({
+          showEditModal: false,
+          editingTodo: null
+        });
+        this.loadTodos(); // 刷新列表
+      } else {
+        wx.showToast({
+          title: result.msg || '更新失败',
+          icon: 'none'
+        });
+      }
+    }).catch(err => {
+      console.error('更新日程失败:', err);
+      wx.showToast({
+        title: '网络错误: ' + (err.errMsg || err.message || JSON.stringify(err)),
+        icon: 'none',
+        duration: 3000
+      });
+    }).finally(() => {
+      wx.hideLoading();
     });
   }
 }) 

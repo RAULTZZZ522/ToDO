@@ -1,9 +1,11 @@
 const cloud = require('wx-server-sdk')
+const todoModel = require('./todoModel')
    
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database();
 const todosCollection = db.collection('todos');
 const pomodoroCollection = db.collection('pomodoro');
+const aimsCollection = db.collection('aims');
 const _ = db.command;
 
 exports.main = async (event, context) => {
@@ -13,238 +15,148 @@ exports.main = async (event, context) => {
   
   // 根据操作类型调用不同的方法
   try {
+    if (!type) {
+      console.error('缺少必要的type参数');
+      return { code: -1, msg: '缺少必要的type参数' };
+    }
+    
+    console.log(`处理操作类型: ${type}`);
+    
     switch (type) {
       case 'getTodos':
-        return await getTodos(event, context, wxContext);
+        return await todoModel.getTodos(event, context);
       case 'addTodo':
-        return await addTodo(event, context, wxContext);
+        return await todoModel.addTodo(event, context);
       case 'updateTodo':
-        return await updateTodo(event, context, wxContext);
+        return await todoModel.updateTodo(event, context);
       case 'deleteTodo':
-        return await deleteTodo(event, context, wxContext);
+        return await todoModel.deleteTodo(event, context);
+      case 'getAims':
+        return await todoModel.getAims(event, context);
+      case 'addAim':
+        return await todoModel.addAim(event, context);
+      case 'updateAim':
+        return await todoModel.updateAim(event, context);
+      case 'deleteAim':
+        return await todoModel.deleteAim(event, context);
+      // 仍然保留其他原有的函数
       case 'getPomodoroStats':
-        return await getPomodoroStats(event, context, wxContext);
+        return await getPomodoroStats(event, context);
       case 'getDailyPomodoroStats':
-        return await getDailyPomodoroStats(event, context, wxContext);
+        return await getDailyPomodoroStats(event, context);
       case 'getPomodoroDistribution':
-        return await getPomodoroDistribution(event, context, wxContext);
+        return await getPomodoroDistribution(event, context);
+      case 'addTomatoRecord':
+        return await addTomatoRecord(event, context);
+      case 'getTomatoRecords':
+        return await getTomatoRecords(event, context);
       default:
+        console.error('未知的操作类型:', type);
         return { code: -1, msg: '未知的操作类型: ' + type };
     }
   } catch (err) {
+    console.error('操作失败:', err);
     return { code: -1, msg: '操作失败', error: err };
   }
 }
 
-// 获取用户的所有日程
-async function getTodos(event, context, wxContext) {
+// 获取用户番茄钟统计数据
+async function getPomodoroStats(event, context) {
+  const wxContext = cloud.getWXContext();
   const OPENID = wxContext.OPENID;
+  
   try {
-    console.log('Getting todos for OPENID:', OPENID);
-    const result = await todosCollection.where({
+    // 获取用户的所有番茄钟记录
+    const result = await pomodoroCollection.where({
       _openid: OPENID
     }).get();
     
-    // 确保所有记录都有tomatoCount字段
-    const data = result.data.map(item => {
-      if (item.tomatoCount === undefined) {
-        item.tomatoCount = 0;
-      }
-      return item;
-    });
-    
-    console.log('Todos retrieved:', data);
-    return { code: 0, data: data };
-  } catch (err) {
-    console.error('Error getting todos:', err);
-    return { code: -1, msg: '获取日程失败', error: err };
-  }
-}
-
-// 添加新日程
-async function addTodo(event, context, wxContext) {
-  const OPENID = wxContext.OPENID;
-  const { title, description, importance, tomatoDuration, tomatoCount, tomatoTotalTime, category } = event;
-  
-  if (!title) {
-    return { code: -1, msg: '标题不能为空' };
-  }
-  
-  try {
-    const now = db.serverDate();
-    const result = await todosCollection.add({
-      data: {
-        _openid: OPENID,
-        title,
-        description: description || '',
-        importance: importance || 3,
-        createTime: now,
-        updateTime: now,
-        completed: false,
-        tomatoDuration: tomatoDuration || 25,
-        tomatoCount: tomatoCount || 0,
-        tomatoTotalTime: tomatoTotalTime || 0,
-        category: category || '学习'
-      }
-    });
-    
-    return { code: 0, data: { id: result._id } };
-  } catch (err) {
-    return { code: -1, msg: '添加日程失败', error: err };
-  }
-}
-
-// 更新日程
-async function updateTodo(event, context, wxContext) {
-  const { id, title, description, importance, completed, tomatoDuration, tomatoCount, tomatoTotalTime, category } = event;
-  if (!id) return { code: -1, msg: 'ID不能为空' };
-  
-  try {
-    console.log('Updating todo with ID:', id);
-    console.log('Update data:', event);
-    
-    // 检查是否存在要更新的记录
-    const checkResult = await todosCollection.doc(id).get();
-    if (!checkResult.data) {
-      return { code: -1, msg: '找不到要更新的记录' };
-    }
-    
-    console.log('Found existing todo:', checkResult.data);
-    
-    // 只更新提供的字段
-    const updateData = {};
-    if (title !== undefined) updateData.title = title;
-    if (description !== undefined) updateData.description = description;
-    if (importance !== undefined) updateData.importance = importance;
-    if (completed !== undefined) updateData.completed = completed;
-    if (tomatoDuration !== undefined) updateData.tomatoDuration = tomatoDuration;
-    if (tomatoCount !== undefined) updateData.tomatoCount = tomatoCount;
-    if (tomatoTotalTime !== undefined) updateData.tomatoTotalTime = tomatoTotalTime;
-    if (category !== undefined) updateData.category = category;
-    updateData.updateTime = db.serverDate();
-    
-    console.log('Fields to update:', updateData);
-    
-    await todosCollection.doc(id).update({ data: updateData });
-    console.log('Update successful');
-    return { code: 0, msg: '更新成功' };
-  } catch (err) {
-    console.error('Update failed:', err);
-    return { code: -1, msg: '更新日程失败', error: err };
-  }
-}
-
-// 删除日程
-async function deleteTodo(event, context, wxContext) {
-  const { id } = event;
-  if (!id) return { code: -1, msg: 'ID不能为空' };
-  
-  try {
-    await todosCollection.doc(id).remove();
-    return { code: 0, msg: '删除成功' };
-  } catch (err) {
-    return { code: -1, msg: '删除日程失败', error: err };
-  }
-}
-
-// 获取用户番茄钟统计数据
-async function getPomodoroStats(event, context, wxContext) {
-  const OPENID = wxContext.OPENID;
-  try {
-    // 获取模拟数据
-    const pomodoroData = await generateMockPomodoroData(OPENID);
+    const records = result.data;
     
     // 计算统计数据
-    let totalCount = pomodoroData.length;
+    let totalCount = records.length;
     let totalDuration = 0;
     
     // 使用Set收集不同的日期以计算使用天数
     const usedDays = new Set();
     
-    pomodoroData.forEach(item => {
-      // 计算总时长（毫秒）
-      const duration = item.endTime - item.startTime;
-      totalDuration += duration;
+    records.forEach(item => {
+      // 计算总时长（分钟）
+      totalDuration += item.duration || 0;
       
       // 收集使用的日期
       const date = new Date(item.startTime).toLocaleDateString();
       usedDays.add(date);
     });
     
-    // 转换为分钟
-    const totalMinutes = Math.floor(totalDuration / 60000);
     // 日均时长（分钟）
-    const dailyAverage = usedDays.size > 0 ? Math.floor(totalMinutes / usedDays.size) : 0;
+    const dailyAverage = usedDays.size > 0 ? Math.floor(totalDuration / usedDays.size) : 0;
     
     return {
       code: 0,
       data: {
         totalCount,
-        totalMinutes,
+        totalMinutes: totalDuration,
         dailyAverage,
         usedDays: usedDays.size
       }
     };
   } catch (err) {
+    console.error('Failed to get pomodoro stats:', err);
     return { code: -1, msg: '获取统计数据失败', error: err };
   }
 }
 
 // 获取当日番茄钟统计数据
-async function getDailyPomodoroStats(event, context, wxContext) {
+async function getDailyPomodoroStats(event, context) {
+  const wxContext = cloud.getWXContext();
   const OPENID = wxContext.OPENID;
   const { date } = event; // 格式: YYYY-MM-DD
   
   try {
-    // 获取模拟数据
-    const pomodoroData = await generateMockPomodoroData(OPENID);
-    
     const targetDate = date ? new Date(date) : new Date();
     targetDate.setHours(0, 0, 0, 0);
     
     const nextDay = new Date(targetDate);
     nextDay.setDate(targetDate.getDate() + 1);
     
-    // 过滤当日数据
-    const dailyData = pomodoroData.filter(item => {
-      const itemDate = new Date(item.startTime);
-      return itemDate >= targetDate && itemDate < nextDay;
-    });
+    // 查询指定日期范围内的番茄钟记录
+    const result = await pomodoroCollection.where({
+      _openid: OPENID,
+      startTime: _.gte(targetDate.getTime()).and(_.lt(nextDay.getTime()))
+    }).get();
+    
+    const records = result.data;
     
     // 计算当日专注次数和总时长
-    let dailyCount = dailyData.length;
+    let dailyCount = records.length;
     let dailyDuration = 0;
     
-    dailyData.forEach(item => {
-      const duration = item.endTime - item.startTime;
-      dailyDuration += duration;
+    records.forEach(item => {
+      dailyDuration += item.duration || 0;
     });
-    
-    // 转换为分钟
-    const dailyMinutes = Math.floor(dailyDuration / 60000);
     
     return {
       code: 0,
       data: {
         date: targetDate.toISOString().split('T')[0],
         count: dailyCount,
-        minutes: dailyMinutes
+        minutes: dailyDuration
       }
     };
   } catch (err) {
+    console.error('Failed to get daily pomodoro stats:', err);
     return { code: -1, msg: '获取当日统计数据失败', error: err };
   }
 }
 
 // 获取番茄钟时间分布
-async function getPomodoroDistribution(event, context, wxContext) {
+async function getPomodoroDistribution(event, context) {
+  const wxContext = cloud.getWXContext();
   const OPENID = wxContext.OPENID;
   const { type } = event; // 'day', 'week', 'month'
   
   try {
-    // 获取模拟数据
-    const pomodoroData = await generateMockPomodoroData(OPENID);
-    
     let distribution = [];
     const now = new Date();
     
@@ -262,14 +174,17 @@ async function getPomodoroDistribution(event, context, wxContext) {
         });
       }
       
-      // 过滤当天数据并按小时统计
-      pomodoroData.filter(item => {
-        const itemDate = new Date(item.startTime);
-        return itemDate >= today && itemDate < tomorrow;
-      }).forEach(item => {
+      // 查询当天的番茄钟记录
+      const result = await pomodoroCollection.where({
+        _openid: OPENID,
+        startTime: _.gte(today.getTime()).and(_.lt(tomorrow.getTime()))
+      }).get();
+      
+      // 按小时统计
+      result.data.forEach(item => {
         const hour = new Date(item.startTime).getHours();
-        const duration = (item.endTime - item.startTime) / 60000; // 转为分钟
-        distribution[hour].minutes += Math.floor(duration);
+        const duration = item.duration || 0;
+        distribution[hour].minutes += duration;
       });
     } else if (type === 'week') {
       // 计算本周的起始日期（周一为起始）
@@ -290,14 +205,17 @@ async function getPomodoroDistribution(event, context, wxContext) {
         });
       }
       
-      // 过滤本周数据并按日期统计
-      pomodoroData.filter(item => {
-        const itemDate = new Date(item.startTime);
-        return itemDate >= weekStart && itemDate < weekEnd;
-      }).forEach(item => {
+      // 查询本周的番茄钟记录
+      const result = await pomodoroCollection.where({
+        _openid: OPENID,
+        startTime: _.gte(weekStart.getTime()).and(_.lt(weekEnd.getTime()))
+      }).get();
+      
+      // 按日期统计
+      result.data.forEach(item => {
         const day = new Date(item.startTime).getDay() || 7;
-        const duration = (item.endTime - item.startTime) / 60000;
-        distribution[day-1].minutes += Math.floor(duration);
+        const duration = item.duration || 0;
+        distribution[day-1].minutes += duration;
       });
     } else if (type === 'month') {
       // 计算本月的天数
@@ -313,17 +231,21 @@ async function getPomodoroDistribution(event, context, wxContext) {
         });
       }
       
-      // 过滤本月数据并按日期统计
+      // 计算本月的起始和结束时间
       const monthStart = new Date(year, month, 1);
       const monthEnd = new Date(year, month + 1, 1);
       
-      pomodoroData.filter(item => {
-        const itemDate = new Date(item.startTime);
-        return itemDate >= monthStart && itemDate < monthEnd;
-      }).forEach(item => {
+      // 查询本月的番茄钟记录
+      const result = await pomodoroCollection.where({
+        _openid: OPENID,
+        startTime: _.gte(monthStart.getTime()).and(_.lt(monthEnd.getTime()))
+      }).get();
+      
+      // 按日期统计
+      result.data.forEach(item => {
         const date = new Date(item.startTime).getDate();
-        const duration = (item.endTime - item.startTime) / 60000;
-        distribution[date-1].minutes += Math.floor(duration);
+        const duration = item.duration || 0;
+        distribution[date-1].minutes += duration;
       });
     }
     
@@ -332,50 +254,81 @@ async function getPomodoroDistribution(event, context, wxContext) {
       data: distribution
     };
   } catch (err) {
+    console.error('Failed to get pomodoro distribution:', err);
     return { code: -1, msg: '获取分布数据失败', error: err };
   }
 }
 
-// 生成模拟的番茄钟数据
-async function generateMockPomodoroData(openid) {
-  // 生成过去30天内的随机番茄钟数据
-  const mockData = [];
-  const now = new Date();
+// 添加番茄钟记录
+async function addTomatoRecord(event, context) {
+  const wxContext = cloud.getWXContext();
+  const OPENID = wxContext.OPENID;
+  const { record } = event;
   
-  // 每天生成1-5个番茄钟记录
-  for (let i = 0; i < 30; i++) {
-    const day = new Date(now);
-    day.setDate(now.getDate() - i);
-    day.setHours(0, 0, 0, 0);
-    
-    const recordCount = Math.floor(Math.random() * 5) + 1;
-    
-    for (let j = 0; j < recordCount; j++) {
-      // 随机时间（8:00-22:00之间）
-      const hour = Math.floor(Math.random() * 14) + 8;
-      const minute = Math.floor(Math.random() * 60);
-      
-      const startTime = new Date(day);
-      startTime.setHours(hour, minute, 0, 0);
-      
-      // 随机时长（15-45分钟）
-      const durationMinutes = Math.floor(Math.random() * 31) + 15;
-      const endTime = new Date(startTime);
-      endTime.setMinutes(startTime.getMinutes() + durationMinutes);
-      
-      // 随机任务名称
-      const tasks = ['学习', '工作', '阅读', '写作', '思考', '规划'];
-      const taskIndex = Math.floor(Math.random() * tasks.length);
-      
-      mockData.push({
-        _openid: openid,
-        startTime: startTime.getTime(),
-        endTime: endTime.getTime(),
-        task: tasks[taskIndex],
-        completed: true
-      });
-    }
+  if (!record || !record.todoId) {
+    return { code: -1, msg: '记录数据不完整' };
   }
   
-  return mockData;
+  try {
+    // 添加用户ID和创建时间
+    record._openid = OPENID;
+    record.createTime = db.serverDate();
+    
+    // 保存到番茄钟记录集合
+    const result = await pomodoroCollection.add({
+      data: record
+    });
+    
+    console.log('Added tomato record:', result);
+    return { code: 0, data: { id: result._id } };
+  } catch (err) {
+    console.error('Failed to add tomato record:', err);
+    return { code: -1, msg: '添加番茄钟记录失败', error: err };
+  }
+}
+
+// 获取番茄钟记录
+async function getTomatoRecords(event, context) {
+  const wxContext = cloud.getWXContext();
+  const OPENID = wxContext.OPENID;
+  const { todoId, startDate, endDate, limit } = event;
+  
+  try {
+    let query = pomodoroCollection.where({
+      _openid: OPENID
+    });
+    
+    // 如果指定了todoId，则只查询该todo的记录
+    if (todoId) {
+      query = query.where({
+        todoId: todoId
+      });
+    }
+    
+    // 如果指定了日期范围，则按日期范围查询
+    if (startDate && endDate) {
+      const startTimestamp = new Date(startDate).getTime();
+      const endTimestamp = new Date(endDate).getTime();
+      
+      query = query.where({
+        startTime: _.gte(startTimestamp).and(_.lte(endTimestamp))
+      });
+    }
+    
+    // 按时间倒序排列，最新的记录在前面
+    query = query.orderBy('startTime', 'desc');
+    
+    // 如果指定了限制数量，则限制返回的记录数
+    if (limit) {
+      query = query.limit(limit);
+    }
+    
+    const result = await query.get();
+    console.log('Retrieved tomato records:', result.data);
+    
+    return { code: 0, data: result.data };
+  } catch (err) {
+    console.error('Failed to get tomato records:', err);
+    return { code: -1, msg: '获取番茄钟记录失败', error: err };
+  }
 }

@@ -3,11 +3,11 @@
     <view class="title">我的日程</view>
     <view class="sort-controls">
       <view class="sort-btn {{sortBy === 'updateTime' ? 'active' : ''}}" bindtap="toggleSort" data-type="updateTime">
-        <text>时间</text>
+        <text style="position: relative; left: -24rpx; top: 0rpx">时间</text>
         <text class="sort-icon">{{sortBy === 'updateTime' ? (sortAsc ? '↑' : '↓') : ''}}</text>
       </view>
       <view class="sort-btn {{sortBy === 'importance' ? 'active' : ''}}" bindtap="toggleSort" data-type="importance">
-        <text>重要性</text>
+        <text style="position: relative; left: 49rpx; top: 0rpx">重要性</text>
         <text class="sort-icon">{{sortBy === 'importance' ? (sortAsc ? '↑' : '↓') : ''}}</text>
       </view>
     </view>
@@ -21,8 +21,8 @@
     <view wx:elif="{{!todos.length}}" class="empty-state">
       <text>还没有日程，点击下方按钮添加</text>
     </view>
-    <view wx:for="{{todos}}" wx:key="_id" class="todo-card {{item.completed ? 'completed' : ''}}">
-      <view class="todo-checkbox" bindtap="toggleComplete" data-id="{{item._id}}" data-completed="{{item.completed}}">
+    <view wx:for="{{todos}}" wx:key="_id" class="todo-card {{item.completed ? 'completed' : ''}}" bindtap="showEditModal" data-todo="{{item}}">
+      <view class="todo-checkbox" bindtap="toggleComplete" data-id="{{item._id}}" data-completed="{{item.completed}}" catchtap>
         <icon type="{{item.completed ? 'success' : 'circle'}}" size="20" color="{{item.completed ? '#ff6b6b' : '#888'}}"></icon>
       </view>
       <view class="todo-content">
@@ -45,20 +45,20 @@
         </view>
       </view>
       <view class="todo-actions">
-        <view class="todo-action tomato-start-btn" bindtap="startTomato" data-id="{{item._id}}">
+        <view class="todo-action tomato-start-btn" bindtap="startTomato" data-id="{{item._id}}" catchtap>
           <icon type="waiting" size="16" color="#a084e8"></icon>
           <text>开始番茄钟</text>
         </view>
-        <view class="todo-action delete-btn" bindtap="deleteTodo" data-id="{{item._id}}">
+        <view class="todo-action delete-btn" bindtap="deleteTodo" data-id="{{item._id}}" catchtap>
           <icon type="cancel" size="20" color="#ff6b6b"></icon>
         </view>
       </view>
       
       <!-- 番茄钟完成次数显示在右下角 -->
-      <view class="tomato-counter" wx:if="{{item.tomatoCount && item.tomatoCount > 0}}">
+      <view class="tomato-counter" wx:if="{{item.tomatoCount > 0 || item.tomatoTotalTime > 0}}">
         <text class="tomato-emoji">🍅</text>
-        <text class="tomato-count-text">{{item.tomatoCount}}</text>
-        <text class="tomato-time-text" wx:if="{{item.tomatoTotalTime && item.tomatoTotalTime > 0}}">{{item.tomatoTotalTime}}分钟</text>
+        <text class="tomato-count-text">{{item.tomatoCount || 0}}</text>
+        <text class="tomato-time-text" wx:if="{{item.tomatoTotalTime > 0}}">{{item.tomatoTotalTime}}分钟</text>
       </view>
     </view>
   </view>
@@ -96,10 +96,71 @@
           </view>
         </view>
       </view>
+      <view class="input-group">
+        <text class="input-label">类别</text>
+        <picker range="{{categories}}" value="{{categories.indexOf(newTodo.category)}}" bindchange="onCategoryChange" class="category-picker">
+          <view class="picker-content">
+            <text>{{newTodo.category}}</text>
+            <text class="picker-arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+      <view class="input-group">
+        <text class="input-label">番茄钟时长 (分钟)</text>
+        <input type="number" class="input" value="{{newTodo.tomatoDuration}}" bindinput="onTomatoDurationInput" />
+      </view>
     </view>
     <view class="modal-footer">
       <button class="btn cancel-btn" bindtap="hideAddModal">取消</button>
       <button class="btn confirm-btn" bindtap="saveTodo">保存</button>
+    </view>
+  </view>
+
+  <!-- Edit todo modal -->
+  <view class="modal-mask" wx:if="{{showEditModal}}" bindtap="hideEditModal"></view>
+  <view class="modal" wx:if="{{showEditModal}}">
+    <view class="modal-header">
+      <text>编辑日程</text>
+    </view>
+    <view class="modal-body">
+      <view class="input-group">
+        <text class="input-label">标题</text>
+        <input class="input" placeholder="输入标题" value="{{editingTodo.title}}" bindinput="onEditTitleInput" />
+      </view>
+      <view class="input-group">
+        <text class="input-label">描述</text>
+        <textarea class="textarea" placeholder="输入描述（可选）" value="{{editingTodo.description}}" bindinput="onEditDescriptionInput"></textarea>
+      </view>
+      <view class="input-group">
+        <text class="input-label">重要程度</text>
+        <view class="importance-selector">
+          <view 
+            wx:for="{{5}}" 
+            wx:key="index" 
+            class="importance-option {{editingTodo.importance >= index+1 ? 'active' : ''}}"
+            bindtap="changeEditImportance"
+            data-level="{{index+1}}">
+            {{index+1}}
+          </view>
+        </view>
+      </view>
+      <view class="input-group">
+        <text class="input-label">类别</text>
+        <picker range="{{categories}}" value="{{categories.indexOf(editingTodo.category)}}" bindchange="onEditCategoryChange" class="category-picker">
+          <view class="picker-content">
+            <text>{{editingTodo.category}}</text>
+            <text class="picker-arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+      <view class="input-group">
+        <text class="input-label">番茄钟时长 (分钟)</text>
+        <input type="number" class="input" value="{{editingTodo.tomatoDuration}}" bindinput="onEditTomatoDurationInput" />
+      </view>
+    </view>
+    <view class="modal-footer">
+      <button class="btn cancel-btn" bindtap="hideEditModal">取消</button>
+      <button class="btn confirm-btn" bindtap="updateTodo">保存</button>
     </view>
   </view>
 

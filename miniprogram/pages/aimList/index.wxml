@@ -1,11 +1,121 @@
-<view class="aim-list">
-  <view class="aim-item" wx:for="{{aims}}" wx:key="_id">
-    <view class="aim-header">
-      <text class="aim-title">{{item.name}}</text>
-      <text class="aim-desc">{{item.description}}</text>
+<view class="aim-container">
+  <view class="header">
+    <text class="title" style="position: relative; left: 33rpx; top: 2rpx">我的目标</text>
+    <button class="add-btn" bindtap="showAddModal" style="position: relative; left: 104rpx; top: 1rpx; width: 268rpx; display: block; box-sizing: border-box">添加目标</button>
+  </view>
+
+  <!-- 目标列表 -->
+  <view class="aim-list">
+    <view wx:if="{{aims.length === 0}}" class="empty-tip">
+      <text>暂无目标，点击"添加目标"创建新目标</text>
     </view>
-    <view class="todo-list" wx:for="{{item.todos}}" wx:key="_id">
-      <text class="todo-content">• {{todo.content}}</text>
+    
+    <view class="aim-item" wx:for="{{aims}}" wx:key="_id">
+      <view class="aim-header">
+        <view class="aim-title-row">
+          <text class="aim-title">{{item.title}}</text>
+          <text class="aim-category">{{item.category}}</text>
+        </view>
+        <text class="aim-desc">{{item.description}}</text>
+      </view>
+      
+      <view class="aim-info">
+        <view class="info-item">
+          <text class="info-label">总时长：</text>
+          <text class="info-value">{{item.totalTime}} 分钟</text>
+        </view>
+        <view class="info-item">
+          <text class="info-label">截止日期：</text>
+          <text class="info-value {{item.daysLeft < 3 && item.daysLeft !== null ? 'urgent' : ''}}" style="height: 124rpx; display: block; box-sizing: border-box; left: -25rpx; top: -33rpx; width: 187rpx">
+            {{item.formattedDeadline}}
+            <text wx:if="{{item.daysLeft !== null}}" style="position: relative; left: -18rpx; top: 10rpx">（剩余 {{item.daysLeft}} 天）</text>
+          </text>
+        </view>
+      </view>
+      
+      <!-- 进度条 -->
+      <view class="progress-section" bindtap="adjustProgress" data-id="{{item._id}}">
+        <view class="progress-header">
+          <text>完成进度</text>
+          <text>{{item.progress}}%</text>
+        </view>
+        <view class="progress-bar-container">
+          <view class="progress-bar" style="width: {{item.progress}}%"></view>
+        </view>
+      </view>
+      
+      <!-- 相关日程 -->
+      <view class="related-todos" wx:if="{{item.relatedTodos && item.relatedTodos.length > 0}}">
+        <text class="related-title">相关日程：</text>
+        <view class="todo-list">
+          <view wx:for="{{todos}}" wx:for-item="todo" wx:key="_id" wx:if="{{item.relatedTodos.includes(todo._id)}}">
+            <text class="todo-item">• {{todo.title}}</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 操作按钮 -->
+      <view class="aim-actions">
+        <button class="action-btn delete" size="mini" bindtap="deleteAim" data-id="{{item._id}}">删除</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 添加目标模态框 -->
+  <view class="modal" wx:if="{{showAddModal}}">
+    <view class="modal-content">
+      <view class="modal-header">
+        <text>添加新目标</text>
+        <icon type="cancel" size="24" bindtap="hideAddModal"></icon>
+      </view>
+      
+      <view class="form-item">
+        <text class="form-label">标题</text>
+        <input class="form-input" placeholder="请输入目标标题" placeholder-class="input-placeholder" value="{{newAim.title}}" bindinput="onInputChange" data-field="title" />
+      </view>
+      
+      <view class="form-item">
+        <text class="form-label">描述</text>
+        <textarea class="form-textarea" placeholder="请输入目标描述" placeholder-class="input-placeholder" value="{{newAim.description}}" bindinput="onInputChange" data-field="description"></textarea>
+      </view>
+      
+      <view class="form-item">
+        <text class="form-label">类别</text>
+        <picker mode="selector" range="{{categories}}" value="{{categories.indexOf(newAim.category)}}" bindchange="onCategoryChange">
+          <view class="picker">
+            {{newAim.category}}
+          </view>
+        </picker>
+      </view>
+      
+      <view class="form-item">
+        <text class="form-label">总需时间（分钟）</text>
+        <input class="form-input" type="number" placeholder="请输入总时长" placeholder-class="input-placeholder" value="{{newAim.totalTime}}" bindinput="onInputChange" data-field="totalTime" />
+      </view>
+      
+      <view class="form-item">
+        <text class="form-label">完成时限</text>
+        <picker mode="date" value="{{newAim.deadline}}" bindchange="onDateChange">
+          <view class="picker">
+            {{newAim.deadline || '请选择日期'}}
+          </view>
+        </picker>
+      </view>
+      
+      <view class="form-item">
+        <text class="form-label">相关日程</text>
+        <view wx:if="{{todos.length === 0}}" class="empty-todos">暂无可关联日程</view>
+        <view wx:else>
+          <checkbox-group bindchange="onTodoCheckboxChange">
+            <label class="checkbox-item" wx:for="{{todos}}" wx:key="_id">
+              <checkbox value="{{item._id}}" checked="{{selectedTodoIds.includes(item._id)}}" />
+              <text class="checkbox-text">{{item.title}}</text>
+            </label>
+          </checkbox-group>
+        </view>
+      </view>
+      
+      <button class="submit-btn" bindtap="addAim">确认添加</button>
     </view>
   </view>
 </view> 

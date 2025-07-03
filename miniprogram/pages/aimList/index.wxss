@@ -1,32 +1,311 @@
-.aim-list {
-  padding: 24rpx;
+page {
+  background: #f7f7f7;
 }
+
+.aim-container {
+  padding: 20rpx;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx 0;
+}
+
+.title {
+  font-size: 40rpx;
+  font-weight: bold;
+}
+
+.add-btn {
+  background: #ff4d4f;
+  color: white;
+  font-size: 28rpx;
+  padding: 12rpx 30rpx;
+  border-radius: 40rpx;
+}
+
+.aim-list {
+  padding: 0 10rpx;
+}
+
+.empty-tip {
+  text-align: center;
+  color: #999;
+  margin-top: 100rpx;
+}
+
+.empty-todos {
+  color: #999;
+  font-size: 28rpx;
+  padding: 10rpx 0;
+}
+
 .aim-item {
   background: #fff;
   border-radius: 16rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
-  padding: 20rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+  padding: 30rpx;
 }
+
 .aim-header {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 12rpx;
+  margin-bottom: 20rpx;
 }
+
+.aim-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10rpx;
+}
+
 .aim-title {
   font-size: 36rpx;
   font-weight: bold;
+  color: #333;
 }
+
+.aim-category {
+  font-size: 24rpx;
+  padding: 4rpx 16rpx;
+  background: #f0f0f0;
+  color: #666;
+  border-radius: 20rpx;
+}
+
 .aim-desc {
   font-size: 28rpx;
+  color: #666;
+  margin-bottom: 20rpx;
+}
+
+.aim-info {
+  margin-bottom: 30rpx;
+}
+
+.info-item {
+  display: flex;
+  margin-bottom: 10rpx;
+}
+
+.info-label {
+  font-size: 28rpx;
   color: #888;
+  width: 160rpx;
 }
-.todo-list {
-  margin-left: 16rpx;
-}
-.todo-content {
+
+.info-value {
   font-size: 28rpx;
   color: #333;
+}
+
+.urgent {
+  color: #ff4d4f;
+  font-weight: bold;
+}
+
+.progress-section {
+  margin: 20rpx 0 30rpx;
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+  font-size: 28rpx;
+  color: #555;
+}
+
+.progress-bar-container {
+  height: 20rpx;
+  background: #f0f0f0;
+  border-radius: 10rpx;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(to right, #6a5acd, #9370db);
+  border-radius: 10rpx;
+  transition: width 0.3s ease-in-out;
+}
+
+.related-todos {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.related-title {
+  font-size: 28rpx;
+  color: #888;
+  margin-bottom: 10rpx;
+}
+
+.todo-item {
+  font-size: 28rpx;
+  color: #555;
   margin-bottom: 8rpx;
   display: block;
+}
+
+.aim-actions {
+  margin-top: 20rpx;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.action-btn {
+  margin-left: 20rpx;
+}
+
+.action-btn.delete {
+  background: #ff4d4f;
+  color: white;
+}
+
+/* 模态框样式 */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  width: 85%;
+  max-height: 85%;
+  overflow-y: auto;
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+  font-size: 34rpx;
+  font-weight: bold;
+}
+
+.form-item {
+  margin-bottom: 30rpx;
+}
+
+.form-label {
+  display: block;
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 10rpx;
+  font-weight: bold;
+}
+
+.form-input, .form-textarea, .picker {
+  width: 100%;
+  border: 1rpx solid #ddd;
+  border-radius: 8rpx;
+  padding: 20rpx;
+  font-size: 30rpx;
+  color: #333;
+  box-sizing: border-box;
+  height: 90rpx;
+  display: flex;
+  align-items: center;
+}
+
+/* 占位符文本样式 */
+.input-placeholder {
+  color: #aaa;
+  font-size: 30rpx;
+  line-height: normal;
+}
+
+/* 标题输入框样式增强 */
+.form-input[data-field="title"] {
+  height: 100rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 100rpx;
+}
+
+/* 数字输入框样式增强 */
+.form-input[type="number"] {
+  height: 100rpx;
+  font-size: 32rpx;
+  padding-left: 30rpx;
+  line-height: 100rpx;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.form-textarea {
+  height: 180rpx;
+  font-size: 30rpx;
+  padding: 20rpx;
+  line-height: 1.5;
+  display: block;
+}
+
+.picker {
+  display: flex;
+  align-items: center;
+  height: 90rpx;
+}
+
+/* 复选框样式改进 */
+checkbox-group {
+  display: flex;
+  flex-direction: column;
+  max-height: 320rpx;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8rpx;
+  padding: 10rpx 0;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  padding: 15rpx 20rpx;
+  margin-bottom: 5rpx;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.checkbox-item:last-child {
+  border-bottom: none;
+}
+
+.checkbox-item checkbox {
+  margin-right: 15rpx;
+}
+
+.checkbox-text {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.submit-btn {
+  margin-top: 40rpx;
+  background: #ff4d4f;
+  color: white;
+  height: 90rpx;
+  line-height: 90rpx;
+  font-size: 32rpx;
+  border-radius: 45rpx;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 } 

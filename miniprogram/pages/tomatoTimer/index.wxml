@@ -5,7 +5,29 @@
   <view class="task-selector">
     <view class="selector-content">
       <view class="task-name">{{title}}</view>
+      <view class="task-category" wx:if="{{category}}">{{category}}</view>
       <view class="arrow">▼</view>
+    </view>
+  </view>
+  
+  <!-- 自定义时长选择器 -->
+  <view class="duration-selector" bindtap="toggleDurationPicker">
+    <view class="duration-display">
+      <text>时长: {{duration}} 分钟</text>
+      <text class="arrow">▼</text>
+    </view>
+    
+    <!-- 时长选择面板 -->
+    <view class="duration-options {{showDurationPicker ? 'show' : ''}}">
+      <view 
+        wx:for="{{durationOptions}}" 
+        wx:key="value"
+        class="duration-option {{duration === item.value ? 'active' : ''}}" 
+        bindtap="selectDuration"
+        data-duration="{{item.value}}">
+        {{item.label}}
+      </view>
+      <!-- 自定义输入时长选项可以在这里添加 -->
     </view>
   </view>
   

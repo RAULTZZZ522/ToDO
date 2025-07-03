@@ -7,14 +7,22 @@ Page({
   data: {
     title: '',
     duration: 25,
-    count: 0,
-    total: 1,
     id: '',
-    totalTime: 0,
     timeLeft: 1500,
     timer: null,
     paused: false,
-    percent: 1
+    percent: 1,
+    // 预设的番茄钟时长选项
+    durationOptions: [
+      { value: 15, label: '15分钟' },
+      { value: 25, label: '25分钟' },
+      { value: 30, label: '30分钟' },
+      { value: 45, label: '45分钟' },
+      { value: 60, label: '60分钟' }
+    ],
+    showDurationPicker: false,
+    category: '',
+    startTime: 0 // 记录开始时间
   },
 
   /**
@@ -23,24 +31,25 @@ Page({
   onLoad(options) {
     console.log('番茄钟页面加载，参数:', options);
     
+    const startTime = new Date().getTime(); // 记录开始时间
+    
     // 确保options中的参数存在，并设置默认值
     this.setData({
       title: decodeURIComponent(options.title || ''),
       duration: Number(options.duration || 25),
-      count: Number(options.count || 0),
-      total: Number(options.total || 1),
       id: options.id || '',
-      totalTime: Number(options.totalTime || 0),
-      timeLeft: Number(options.duration || 25) * 60
+      timeLeft: Number(options.duration || 25) * 60,
+      category: decodeURIComponent(options.category || ''),
+      startTime: startTime
     });
     
     console.log('番茄钟页面数据设置完成:', {
       title: this.data.title,
       duration: this.data.duration,
-      count: this.data.count,
-      totalTime: this.data.totalTime,
       id: this.data.id,
-      timeLeft: this.data.timeLeft
+      timeLeft: this.data.timeLeft,
+      category: this.data.category,
+      startTime: this.data.startTime
     });
     
     // 等待页面渲染完成后再绘制圆环
@@ -69,14 +78,144 @@ Page({
    * 生命周期函数--监听页面隐藏
    */
   onHide() {
-
+    // 确保数据在页面隐藏时也能得到保存
+    // 注意：页面隐藏可能是由于返回按钮或其他方式导致的
+    if (this.data.timer) {
+      clearTimeout(this.data.timer);
+      
+      // 计算已经计时的时间（秒）
+      const originalTimeInSeconds = this.data.duration * 60;
+      const elapsedTimeInSeconds = originalTimeInSeconds - this.data.timeLeft;
+      
+      console.log('页面隐藏时保存计时状态:', elapsedTimeInSeconds, '秒，总共:', originalTimeInSeconds, '秒');
+      
+      // 如果已经计时超过一定时间（如10秒），自动保存
+      if (elapsedTimeInSeconds > 10) {
+        // 转换为分钟并四舍五入到整数
+        const elapsedTimeInMinutes = Math.round(elapsedTimeInSeconds / 60);
+        const todoId = this.data.id;
+        
+        console.log('页面隐藏自动保存部分完成的番茄钟:');
+        console.log('计时时间:', elapsedTimeInMinutes, '分钟');
+        
+        // 设置一个标记，表示页面正在保存数据
+        this.savingData = true;
+        
+        // 创建番茄钟记录（部分完成）
+        const tomatoRecord = {
+          todoId: todoId,
+          title: this.data.title,
+          category: this.data.category,
+          startTime: this.data.startTime, // 使用记录的开始时间
+          endTime: new Date().getTime(), // 结束时间（当前时间）
+          duration: elapsedTimeInMinutes, // 持续时间（分钟）
+          completed: false, // 标记为未完成
+          autoSaved: true // 标记为自动保存
+        };
+        
+        // 保存番茄钟记录
+        wx.cloud.callFunction({
+          name: 'todoModel',
+          data: {
+            type: 'addTomatoRecord',
+            record: tomatoRecord
+          }
+        }).then(recordRes => {
+          console.log('页面隐藏时部分番茄钟记录保存结果:', recordRes);
+          
+          // 确保返回上一页时会刷新数据
+          const pages = getCurrentPages();
+          if (pages.length > 1) {
+            const prevPage = pages[pages.length - 2];
+            
+            // 向上一页传递更新后的数据
+            if (prevPage && prevPage.route.includes('todoList')) {
+              console.log('尝试更新todoList页面数据');
+              if (typeof prevPage.setData === 'function') {
+                prevPage.setData({
+                  needRefresh: true
+                });
+              }
+            }
+          }
+          
+          this.savingData = false;
+        }).catch(err => {
+          console.error('页面隐藏时保存部分番茄钟失败:', err);
+          this.savingData = false;
+        });
+      }
+    }
   },
 
   /**
    * 生命周期函数--监听页面卸载
    */
   onUnload() {
-
+    // 如果计时器还在运行，需要保存当前状态
+    if (this.data.timer) {
+      clearTimeout(this.data.timer);
+      
+      // 计算已经计时的时间（秒）
+      const originalTimeInSeconds = this.data.duration * 60;
+      const elapsedTimeInSeconds = originalTimeInSeconds - this.data.timeLeft;
+      
+      console.log('页面卸载时保存计时状态:', elapsedTimeInSeconds, '秒，总共:', originalTimeInSeconds, '秒');
+      
+      // 如果已经计时超过一定时间（如10秒），自动保存
+      if (elapsedTimeInSeconds > 10) {
+        // 转换为分钟并四舍五入到整数
+        const elapsedTimeInMinutes = Math.round(elapsedTimeInSeconds / 60);
+        const todoId = this.data.id;
+        
+        console.log('页面卸载自动保存部分完成的番茄钟:');
+        console.log('ID:', todoId);
+        console.log('计时时间:', elapsedTimeInMinutes, '分钟');
+        
+        // 创建番茄钟记录（部分完成）
+        const tomatoRecord = {
+          todoId: todoId,
+          title: this.data.title,
+          category: this.data.category,
+          startTime: this.data.startTime, // 使用记录的开始时间
+          endTime: new Date().getTime(), // 结束时间（当前时间）
+          duration: elapsedTimeInMinutes, // 持续时间（分钟）
+          completed: false, // 标记为未完成
+          autoSaved: true // 标记为自动保存
+        };
+        
+        // 保存番茄钟记录
+        wx.cloud.callFunction({
+          name: 'todoModel',
+          data: {
+            type: 'addTomatoRecord',
+            record: tomatoRecord
+          }
+        }).then(recordRes => {
+          console.log('页面卸载时部分番茄钟记录保存结果:', recordRes);
+          
+          // 确保返回上一页时会刷新数据
+          const pages = getCurrentPages();
+          if (pages.length > 1) {
+            const prevPage = pages[pages.length - 2];
+            
+            // 向上一页传递更新后的数据
+            if (prevPage && prevPage.route.includes('todoList')) {
+              console.log('尝试更新todoList页面数据');
+              // 设置标记，表示需要刷新
+              if (typeof prevPage.setData === 'function') {
+                prevPage.setData({
+                  needRefresh: true,
+                  lastUpdatedTodoId: todoId
+                });
+              }
+            }
+          }
+        }).catch(err => {
+          console.error('页面卸载时保存部分番茄钟失败:', err);
+        });
+      }
+    }
   },
 
   /**
@@ -100,142 +239,122 @@ Page({
 
   },
 
+  // 停止番茄钟
   onStop() {
-    // 如果番茄钟正在运行，需要询问用户是否要放弃这次计时
-    if (this.data.timer) {
-      clearTimeout(this.data.timer);
-      this.setData({ timer: null });
-
-      // 计算已经计时的时间（秒）
-      const originalTimeInSeconds = this.data.duration * 60;
-      const elapsedTimeInSeconds = originalTimeInSeconds - this.data.timeLeft;
-      
-      console.log('已经计时:', elapsedTimeInSeconds, '秒，总共:', originalTimeInSeconds, '秒');
-      
-      // 如果已经计时超过一半，询问是否要保存这次计时
-      if (elapsedTimeInSeconds > originalTimeInSeconds / 2) {
-        wx.showModal({
-          title: '保存计时',
-          content: `您已经完成了超过一半的番茄钟时间(${Math.floor(elapsedTimeInSeconds/60)}分钟)，是否保存这次计时?`,
-          confirmText: '保存',
-          cancelText: '放弃',
-          success: (res) => {
-            if (res.confirm) {
-              // 用户选择保存，更新计数和时间
-              this.savePartialTomato(elapsedTimeInSeconds);
-            } else {
-              // 用户选择放弃，直接返回
-              wx.navigateBack();
-            }
+    if (!this.data.timer) return;
+    
+    clearTimeout(this.data.timer);
+    
+    // 计算已经计时的时间（秒）
+    const originalTimeInSeconds = this.data.duration * 60;
+    const elapsedTimeInSeconds = originalTimeInSeconds - this.data.timeLeft;
+    
+    console.log('停止番茄钟，已计时:', elapsedTimeInSeconds, '秒，总共:', originalTimeInSeconds, '秒');
+    
+    // 如果已经计时超过一定时间（如10秒），询问是否保存
+    if (elapsedTimeInSeconds > 10) {
+      wx.showModal({
+        title: '保存计时',
+        content: '是否保存已计时的时间？',
+        confirmText: '保存',
+        cancelText: '不保存',
+        success: (res) => {
+          if (res.confirm) {
+            // 用户点击确定，保存部分完成的番茄钟
+            this.savePartialTomato(elapsedTimeInSeconds);
+          } else {
+            // 用户点击取消，直接返回
+            wx.navigateBack();
           }
-        });
-      } else {
-        // 时间不到一半，询问是否放弃
-        wx.showModal({
-          title: '放弃计时',
-          content: '确定要放弃这次番茄钟计时吗?',
-          confirmText: '放弃',
-          cancelText: '继续',
-          success: (res) => {
-            if (res.confirm) {
-              // 用户确认放弃
-              wx.navigateBack();
-            } else {
-              // 用户选择继续，重新开始计时
-              this.setData({ paused: false });
-              this.startTimer();
-            }
-          }
-        });
-      }
+        }
+      });
     } else {
-      // 如果番茄钟已经暂停，直接返回
-      wx.navigateBack();
+      // 时间太短，直接返回
+      wx.showToast({
+        title: '时间太短，未保存',
+        icon: 'none',
+        duration: 1000
+      });
+      setTimeout(() => wx.navigateBack(), 1000);
     }
   },
   onFinish() {
-    if (this.data.timer) {
-      clearTimeout(this.data.timer);
-    }
+    clearTimeout(this.data.timer);
     
-    const todoId = this.data.id;
-    const currentCount = this.data.count;
-    const newCount = currentCount + 1;
-    const duration = this.data.duration; // 当前番茄钟时长（分钟）
-    const currentTotalTime = this.data.totalTime; // 当前总计时
-    const newTotalTime = currentTotalTime + duration; // 新的总计时
+    // 播放完成提示音
+    const innerAudioContext = wx.createInnerAudioContext();
+    innerAudioContext.src = 'https://6d61-mycloud-4gvfly7v9aecf10f-1305446481.tcb.qcloud.la/ding.mp3';
+    innerAudioContext.play();
     
-    // 显示详细日志
-    console.log('番茄钟完成，准备更新计数和总计时');
-    console.log('任务ID:', todoId);
-    console.log('当前计数:', currentCount);
-    console.log('新计数将为:', newCount);
-    console.log('本次番茄钟时长:', duration, '分钟');
-    console.log('当前总计时:', currentTotalTime, '分钟');
-    console.log('新总计时:', newTotalTime, '分钟');
+    // 震动提示
+    wx.vibrateShort();
     
-    // 调用云函数更新番茄钟完成次数和总计时
     wx.showLoading({ title: '保存中...' });
     
-    // 直接更新tomatoCount和tomatoTotalTime
+    const todoId = this.data.id;
+    const duration = this.data.duration; // 番茄钟时长（分钟）
+    
+    console.log('完成番茄钟:');
+    console.log('ID:', todoId);
+    console.log('时长:', duration, '分钟');
+    
+    // 创建番茄钟记录（完成）
+    const tomatoRecord = {
+      todoId: todoId,
+      title: this.data.title,
+      category: this.data.category,
+      startTime: this.data.startTime, // 使用记录的开始时间
+      endTime: new Date().getTime(), // 结束时间（当前时间）
+      duration: duration, // 持续时间（分钟）
+      completed: true // 标记为已完成
+    };
+    
+    // 保存番茄钟记录
     wx.cloud.callFunction({
       name: 'todoModel',
       data: {
-        type: 'updateTodo',
-        id: todoId,
-        tomatoCount: newCount,
-        tomatoTotalTime: newTotalTime
+        type: 'addTomatoRecord',
+        record: tomatoRecord
       }
-    }).then(res => {
-      console.log('番茄钟计数和总计时更新结果:', res);
+    }).then(recordRes => {
+      console.log('番茄钟记录保存结果:', recordRes);
       
-      if (res.result && res.result.code === 0) {
-        wx.hideLoading();
-        wx.showToast({ 
-          title: '番茄钟完成!', 
-          icon: 'success',
-          duration: 1500
-        });
-        
-        // 返回上一页并立即刷新
-        setTimeout(() => {
-          // 确保返回上一页时会刷新数据
-          const pages = getCurrentPages();
-          if (pages.length > 1) {
-            const prevPage = pages[pages.length - 2];
-            
-            // 向上一页传递更新后的数据
-            if (prevPage && prevPage.route.includes('todoList')) {
-              console.log('尝试更新todoList页面数据');
-              // 设置标记，表示需要刷新
-              if (typeof prevPage.setData === 'function') {
-                prevPage.setData({
-                  needRefresh: true,
-                  lastUpdatedTodoId: todoId,
-                  lastUpdatedTomatoCount: newCount,
-                  lastUpdatedTomatoTotalTime: newTotalTime
-                });
-              }
+      wx.hideLoading();
+      wx.showToast({ 
+        title: '番茄钟完成!', 
+        icon: 'success',
+        duration: 1500
+      });
+      
+      // 返回上一页并立即刷新
+      setTimeout(() => {
+        // 确保返回上一页时会刷新数据
+        const pages = getCurrentPages();
+        if (pages.length > 1) {
+          const prevPage = pages[pages.length - 2];
+          
+          // 向上一页传递更新后的数据
+          if (prevPage && prevPage.route.includes('todoList')) {
+            console.log('尝试更新todoList页面数据');
+            // 设置标记，表示需要刷新
+            if (typeof prevPage.setData === 'function') {
+              prevPage.setData({
+                needRefresh: true,
+                lastUpdatedTodoId: todoId
+              });
             }
           }
-          
-          // 返回上一页
-          wx.navigateBack({
-            success: function() {
-              console.log('成功返回上一页');
-            }
-          });
-        }, 1000);
-      } else {
-        wx.hideLoading();
-        wx.showToast({ 
-          title: '保存失败', 
-          icon: 'none' 
+        }
+        
+        // 返回上一页
+        wx.navigateBack({
+          success: function() {
+            console.log('成功返回上一页');
+          }
         });
-        setTimeout(() => wx.navigateBack(), 800);
-      }
+      }, 1000);
     }).catch(err => {
-      console.error('更新番茄钟计数失败:', err);
+      console.error('保存番茄钟记录失败:', err);
       wx.hideLoading();
       wx.showToast({ title: '保存失败: ' + err.message, icon: 'none' });
       setTimeout(() => wx.navigateBack(), 800);
@@ -285,82 +404,73 @@ Page({
   // 保存部分完成的番茄钟
   savePartialTomato(elapsedTimeInSeconds) {
     const todoId = this.data.id;
-    const currentCount = this.data.count;
-    const currentTotalTime = this.data.totalTime;
     
     // 转换为分钟并四舍五入到整数
     const elapsedTimeInMinutes = Math.round(elapsedTimeInSeconds / 60);
     
-    // 不增加番茄钟计数，只增加总时间
-    const newTotalTime = currentTotalTime + elapsedTimeInMinutes;
-    
     console.log('保存部分完成的番茄钟:');
     console.log('ID:', todoId);
-    console.log('当前计数:', currentCount, '(保持不变)');
     console.log('计时时间:', elapsedTimeInMinutes, '分钟');
-    console.log('当前总时间:', currentTotalTime, '分钟');
-    console.log('新总时间:', newTotalTime, '分钟');
     
     wx.showLoading({ title: '保存中...' });
     
-    // 调用云函数只更新总时间
+    // 创建番茄钟记录（部分完成）
+    const tomatoRecord = {
+      todoId: todoId,
+      title: this.data.title,
+      category: this.data.category,
+      startTime: this.data.startTime, // 使用记录的开始时间
+      endTime: new Date().getTime(), // 结束时间（当前时间）
+      duration: elapsedTimeInMinutes, // 持续时间（分钟）
+      completed: false // 标记为未完成
+    };
+    
+    // 保存番茄钟记录
     wx.cloud.callFunction({
       name: 'todoModel',
       data: {
-        type: 'updateTodo',
-        id: todoId,
-        tomatoTotalTime: newTotalTime
+        type: 'addTomatoRecord',
+        record: tomatoRecord
       }
-    }).then(res => {
-      console.log('部分番茄钟保存结果:', res);
+    }).then(recordRes => {
+      console.log('部分番茄钟记录保存结果:', recordRes);
       
-      if (res.result && res.result.code === 0) {
-        wx.hideLoading();
-        wx.showToast({
-          title: '已保存时间',
-          icon: 'success',
-          duration: 1500
-        });
-        
-        // 返回上一页并立即刷新
-        setTimeout(() => {
-          // 确保返回上一页时会刷新数据
-          const pages = getCurrentPages();
-          if (pages.length > 1) {
-            const prevPage = pages[pages.length - 2];
-            
-            // 向上一页传递更新后的数据
-            if (prevPage && prevPage.route.includes('todoList')) {
-              console.log('尝试更新todoList页面数据');
-              // 设置标记，表示需要刷新
-              if (typeof prevPage.setData === 'function') {
-                prevPage.setData({
-                  needRefresh: true,
-                  lastUpdatedTodoId: todoId,
-                  lastUpdatedTomatoCount: currentCount, // 计数保持不变
-                  lastUpdatedTomatoTotalTime: newTotalTime
-                });
-              }
+      wx.hideLoading();
+      wx.showToast({
+        title: '已保存时间',
+        icon: 'success',
+        duration: 1500
+      });
+      
+      // 返回上一页并立即刷新
+      setTimeout(() => {
+        // 确保返回上一页时会刷新数据
+        const pages = getCurrentPages();
+        if (pages.length > 1) {
+          const prevPage = pages[pages.length - 2];
+          
+          // 向上一页传递更新后的数据
+          if (prevPage && prevPage.route.includes('todoList')) {
+            console.log('尝试更新todoList页面数据');
+            // 设置标记，表示需要刷新
+            if (typeof prevPage.setData === 'function') {
+              prevPage.setData({
+                needRefresh: true,
+                lastUpdatedTodoId: todoId
+              });
             }
           }
-          
-          // 返回上一页
-          wx.navigateBack({
-            success: function() {
-              console.log('成功返回上一页');
-            }
-          });
-        }, 1000);
-      } else {
-        wx.hideLoading();
-        wx.showToast({
-          title: '保存失败',
-          icon: 'none'
+        }
+        
+        // 返回上一页
+        wx.navigateBack({
+          success: function() {
+            console.log('成功返回上一页');
+          }
         });
-        setTimeout(() => wx.navigateBack(), 800);
-      }
+      }, 1000);
     }).catch(err => {
-      console.error('保存部分番茄钟失败:', err);
+      console.error('保存部分番茄钟记录失败:', err);
       wx.hideLoading();
       wx.showToast({ title: '保存失败: ' + err.message, icon: 'none' });
       setTimeout(() => wx.navigateBack(), 800);
@@ -378,6 +488,7 @@ Page({
     if (this.data.paused) return;
     
     if (this.data.timeLeft <= 0) {
+      // 完成番茄钟，增加计数，并保存到数据库
       this.onFinish();
       return;
     }
@@ -403,6 +514,43 @@ Page({
     } else if (this.data.timer) {
       clearTimeout(this.data.timer);
       this.setData({ timer: null });
+    }
+  },
+
+  /**
+   * 切换时长选择器的显示状态
+   */
+  toggleDurationPicker() {
+    if (this.data.timer) {
+      // 如果计时器已经在运行，提示不能更改时长
+      wx.showToast({
+        title: '计时中无法更改时长',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    this.setData({
+      showDurationPicker: !this.data.showDurationPicker
+    });
+  },
+  
+  /**
+   * 选择新的番茄钟时长
+   */
+  selectDuration(e) {
+    const duration = Number(e.currentTarget.dataset.duration);
+    if (duration) {
+      this.setData({
+        duration: duration,
+        timeLeft: duration * 60,
+        showDurationPicker: false
+      });
+      
+      // 重绘进度条
+      wx.nextTick(() => {
+        this.drawProgress(1);
+      });
     }
   }
 })
