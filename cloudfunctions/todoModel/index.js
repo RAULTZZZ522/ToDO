@@ -36,9 +36,42 @@ exports.main = async (event, context) => {
       case 'addAim':
         return await todoModel.addAim(event, context);
       case 'updateAim':
-        return await todoModel.updateAim(event, context);
+        console.log('处理updateAim请求，参数:', event);
+        const result = await todoModel.updateAim(event, context);
+        console.log('updateAim处理结果:', result);
+        return result;
       case 'deleteAim':
         return await todoModel.deleteAim(event, context);
+      case 'linkTodosToAim':
+        console.log('处理linkTodosToAim请求，参数:', event);
+        try {
+          const linkResult = await todoModel.linkTodosToAim(event, context);
+          console.log('linkTodosToAim处理结果:', linkResult);
+          return linkResult;
+        } catch (error) {
+          console.error('linkTodosToAim处理出错:', error);
+          return { code: -1, msg: '关联日程失败', error };
+        }
+      case 'updateAimProgress':
+        console.log('处理updateAimProgress请求，参数:', event);
+        try {
+          const progressResult = await todoModel.updateAimProgress(event, context);
+          console.log('updateAimProgress处理结果:', progressResult);
+          return progressResult;
+        } catch (error) {
+          console.error('updateAimProgress处理出错:', error);
+          return { code: -1, msg: '更新目标进度失败', error };
+        }
+      case 'setAimProgress':
+        console.log('处理setAimProgress请求，参数:', event);
+        try {
+          const setProgressResult = await todoModel.setAimProgress(event, context);
+          console.log('setAimProgress处理结果:', setProgressResult);
+          return setProgressResult;
+        } catch (error) {
+          console.error('setAimProgress处理出错:', error);
+          return { code: -1, msg: '设置目标进度失败', error };
+        }
       // 仍然保留其他原有的函数
       case 'getPomodoroStats':
         return await getPomodoroStats(event, context);
@@ -265,7 +298,10 @@ async function addTomatoRecord(event, context) {
   const OPENID = wxContext.OPENID;
   const { record } = event;
   
+  console.log('添加番茄钟记录，参数:', record);
+  
   if (!record || !record.todoId) {
+    console.error('记录数据不完整');
     return { code: -1, msg: '记录数据不完整' };
   }
   
@@ -279,10 +315,43 @@ async function addTomatoRecord(event, context) {
       data: record
     });
     
-    console.log('Added tomato record:', result);
+    console.log('添加番茄钟记录成功:', result);
+    
+    // 查找与该日程关联的所有目标
+    console.log('查询与日程关联的目标，todoId:', record.todoId);
+    const relatedAims = await aimsCollection.where({
+      _openid: OPENID,
+      relatedTodos: record.todoId
+    }).get();
+    
+    console.log('找到关联的目标:', relatedAims.data);
+    
+    // 更新所有关联目标的进度
+    if (relatedAims.data && relatedAims.data.length > 0) {
+      console.log(`开始更新 ${relatedAims.data.length} 个关联目标的进度`);
+      
+      for (const aim of relatedAims.data) {
+        console.log(`更新目标 ${aim._id} 的进度`);
+        
+        try {
+          const updateResult = await todoModel.updateAimProgress({
+            aimId: aim._id
+          }, context);
+          
+          console.log(`目标 ${aim._id} 进度更新结果:`, updateResult);
+        } catch (err) {
+          console.error(`更新目标 ${aim._id} 进度失败:`, err);
+        }
+      }
+      
+      console.log('所有关联目标进度更新完成');
+    } else {
+      console.log('没有找到关联的目标，无需更新进度');
+    }
+    
     return { code: 0, data: { id: result._id } };
   } catch (err) {
-    console.error('Failed to add tomato record:', err);
+    console.error('添加番茄钟记录失败:', err);
     return { code: -1, msg: '添加番茄钟记录失败', error: err };
   }
 }

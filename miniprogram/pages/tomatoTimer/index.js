@@ -52,6 +52,9 @@ Page({
       startTime: this.data.startTime
     });
     
+    // 格式化时间测试
+    console.log('格式化时间测试:', this.formatTime(this.data.timeLeft));
+    
     // 等待页面渲染完成后再绘制圆环
     wx.nextTick(() => {
       this.drawProgress(1);

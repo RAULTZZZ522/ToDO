@@ -1,3 +1,15 @@
+<wxs module="timeUtil">
+function formatTime(t) {
+  var m = Math.floor(t / 60);
+  var s = t % 60;
+  return m + ":" + (s < 10 ? "0" + s : s);
+}
+
+module.exports = {
+  formatTime: formatTime
+};
+</wxs>
+
 <view class="timer-page">
   <view class="header">任务时钟</view>
   
@@ -41,11 +53,7 @@
     <!-- 白色圆圈 -->
     <view class="timer-circle">
       <view class="timer-content">
-        <view class="count-area">
-          <view class="timer-icon">⏱️</view>
-          <text class="count-text">{{count}}/{{total}}</text>
-        </view>
-        <view class="time-display">{{formatTime(timeLeft)}}</view>
+        <view class="time-display">{{timeUtil.formatTime(timeLeft)}}</view>
       </view>
     </view>
   </view>

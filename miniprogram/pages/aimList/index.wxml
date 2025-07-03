@@ -46,9 +46,9 @@
       
       <!-- 相关日程 -->
       <view class="related-todos" wx:if="{{item.relatedTodos && item.relatedTodos.length > 0}}">
-        <text class="related-title">相关日程：</text>
+        <text class="related-title">相关日程：{{item.relatedTodos.length}}个</text>
         <view class="todo-list">
-          <view wx:for="{{todos}}" wx:for-item="todo" wx:key="_id" wx:if="{{item.relatedTodos.includes(todo._id)}}">
+          <view wx:for="{{todos}}" wx:for-item="todo" wx:key="_id" wx:if="{{item.relatedTodos.includes(todo._id)}}" class="related-todo-item">
             <text class="todo-item">• {{todo.title}}</text>
           </view>
         </view>
@@ -56,6 +56,8 @@
       
       <!-- 操作按钮 -->
       <view class="aim-actions">
+        <button class="action-btn relate" size="mini" bindtap="updateAimRelatedTodos" data-id="{{item._id}}">关联日程</button>
+        <button class="action-btn refresh" size="mini" bindtap="refreshAimProgress" data-id="{{item._id}}">刷新进度</button>
         <button class="action-btn delete" size="mini" bindtap="deleteAim" data-id="{{item._id}}">删除</button>
       </view>
     </view>
@@ -104,18 +106,45 @@
       
       <view class="form-item">
         <text class="form-label">相关日程</text>
+        
         <view wx:if="{{todos.length === 0}}" class="empty-todos">暂无可关联日程</view>
-        <view wx:else>
-          <checkbox-group bindchange="onTodoCheckboxChange">
-            <label class="checkbox-item" wx:for="{{todos}}" wx:key="_id">
-              <checkbox value="{{item._id}}" checked="{{selectedTodoIds.includes(item._id)}}" />
-              <text class="checkbox-text">{{item.title}}</text>
-            </label>
-          </checkbox-group>
+        <view wx:else class="todo-checkbox-container">
+          <view wx:for="{{todos}}" wx:key="_id" class="todo-item">
+            <view class="todo-checkbox" bindtap="toggleAddTodo" data-id="{{item._id}}">
+              <view class="checkbox {{selectedTodoIds.includes(item._id) ? 'checked' : ''}}"></view>
+            </view>
+            <view class="todo-title" bindtap="toggleAddTodo" data-id="{{item._id}}">{{item.title}}</view>
+          </view>
         </view>
       </view>
       
       <button class="submit-btn" bindtap="addAim">确认添加</button>
+    </view>
+  </view>
+  
+  <!-- 选择关联日程模态框 -->
+  <view class="modal" wx:if="{{showTodoSelectModal}}">
+    <view class="modal-content">
+      <view class="modal-header">
+        <text>关联日程</text>
+        <icon type="cancel" size="24" bindtap="hideTodoSelectModal"></icon>
+      </view>
+      
+      <view class="form-item">
+        <text class="form-label">选择关联日程</text>
+        
+        <view wx:if="{{todos.length === 0}}" class="empty-todos">暂无可关联日程</view>
+        <view wx:else class="todo-checkbox-container">
+          <view wx:for="{{todos}}" wx:key="_id" class="todo-item">
+            <view class="todo-checkbox" bindtap="toggleTodo" data-id="{{item._id}}">
+              <view class="checkbox {{selectedTodoIds.includes(item._id) ? 'checked' : ''}}"></view>
+            </view>
+            <view class="todo-title" bindtap="toggleTodo" data-id="{{item._id}}">{{item.title}}</view>
+          </view>
+        </view>
+      </view>
+      
+      <button class="submit-btn" bindtap="confirmUpdateRelatedTodos">确认关联</button>
     </view>
   </view>
 </view> 

@@ -2,12 +2,12 @@
   <view class="header">
     <view class="title">我的日程</view>
     <view class="sort-controls">
-      <view class="sort-btn {{sortBy === 'updateTime' ? 'active' : ''}}" bindtap="toggleSort" data-type="updateTime">
-        <text style="position: relative; left: -24rpx; top: 0rpx">时间</text>
+      <view class="sort-btn {{sortBy === 'updateTime' ? 'active' : ''}}" bindtap="toggleSort" data-type="updateTime" style="position: relative; left: -22rpx; top: 0rpx">
+        <text style="position: relative; left: 0rpx; top: 0rpx">时间</text>
         <text class="sort-icon">{{sortBy === 'updateTime' ? (sortAsc ? '↑' : '↓') : ''}}</text>
       </view>
-      <view class="sort-btn {{sortBy === 'importance' ? 'active' : ''}}" bindtap="toggleSort" data-type="importance">
-        <text style="position: relative; left: 49rpx; top: 0rpx">重要性</text>
+      <view class="sort-btn {{sortBy === 'importance' ? 'active' : ''}}" bindtap="toggleSort" data-type="importance" style="position: relative; left: 41rpx; top: 0rpx">
+        <text style="position: relative; left: 4rpx; top: 0rpx">重要性</text>
         <text class="sort-icon">{{sortBy === 'importance' ? (sortAsc ? '↑' : '↓') : ''}}</text>
       </view>
     </view>
