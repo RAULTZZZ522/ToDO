@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { getTodos, getAims, getPomodoros, callCloudFunction } from '../services/cloudDbService'
 
 // 注册Chart.js组件
 Chart.register(...registerables)
@@ -13,6 +14,8 @@ const totalPomodoros = ref(0)
 const totalAims = ref(0)
 const completedAims = ref(0)
 const isLoading = ref(true)
+const errorMessage = ref('')
+const cloudFunctionResult = ref(null)
 
 // 每日任务完成统计数据
 const dailyStats = ref([
@@ -257,22 +260,72 @@ const sortedAimsByDeadline = computed(() => {
   })
 })
 
-// 模拟数据加载
-onMounted(() => {
-  // 模拟API请求延迟
-  setTimeout(() => {
+// 数据状态
+const todos = ref([])
+const aims = ref([])
+const pomodoros = ref([])
+
+// 加载数据
+const loadData = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+  
+  try {
+    // 并行获取所有数据
+    const [todosData, aimsData, pomodorosData] = await Promise.all([
+      getTodos(),
+      getAims(),
+      getPomodoros()
+    ])
+    
+    todos.value = todosData
+    aims.value = aimsData
+    pomodoros.value = pomodorosData
+    
+    console.log('所有数据加载成功', {
+      todos: todos.value.length,
+      aims: aims.value.length,
+      pomodoros: pomodoros.value.length
+    })
+
     totalUsers.value = 158
     totalTodos.value = 467
     completedTodos.value = 312
     totalPomodoros.value = 1289
     totalAims.value = 33
     completedAims.value = 18
-    isLoading.value = false
 
     // 图表初始化
     createUserActivityChart()
     createAimCategoryChart()
-  }, 800)
+  } catch (error) {
+    console.error('加载数据失败:', error)
+    errorMessage.value = `数据加载失败: ${error.message || '未知错误'}`
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 调用云函数示例
+const callCustomCloudFunction = async () => {
+  try {
+    // 假设您已经创建了一个名为'getStatistics'的云函数
+    // 用于获取用户待办事项和番茄钟的统计数据
+    const result = await callCloudFunction('getStatistics', {
+      userId: 'o2ch25FQ2FpXs1fYC3JyOWo-hUKo'  // 可以传递参数给云函数
+    })
+    
+    cloudFunctionResult.value = result
+    console.log('云函数调用成功:', result)
+  } catch (error) {
+    console.error('云函数调用失败:', error)
+    errorMessage.value = `云函数调用失败: ${error.message || '未知错误'}`
+  }
+}
+
+// 页面加载时获取数据
+onMounted(() => {
+  loadData()
 })
 </script>
 
@@ -501,6 +554,25 @@ onMounted(() => {
           <div class="chart-wrapper">
             <canvas id="userActivityChart"></canvas>
           </div>
+        </div>
+      </div>
+
+      <div v-if="isLoading" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>加载数据中，请稍候...</p>
+      </div>
+      
+      <div v-else-if="errorMessage" class="error-container">
+        <p class="error-message">{{ errorMessage }}</p>
+        <button @click="loadData" class="retry-btn">重试</button>
+      </div>
+      
+      <div v-else class="cloud-function-section">
+        <h2>云函数调用示例</h2>
+        <button @click="callCustomCloudFunction" class="cloud-btn">调用统计云函数</button>
+        
+        <div v-if="cloudFunctionResult" class="result-container">
+          <pre>{{ JSON.stringify(cloudFunctionResult, null, 2) }}</pre>
         </div>
       </div>
     </div>
@@ -911,6 +983,81 @@ onMounted(() => {
   font-size: 12px;
   color: var(--text-light);
   margin-top: 2px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 300px;
+}
+
+.loading-spinner {
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top: 4px solid #3498db;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-container {
+  text-align: center;
+  margin: 50px 0;
+}
+
+.error-message {
+  color: #e74c3c;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.retry-btn, .cloud-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retry-btn:hover, .cloud-btn:hover {
+  background-color: #2980b9;
+}
+
+.cloud-function-section {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.cloud-function-section h2 {
+  margin-top: 0;
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.result-container {
+  margin-top: 20px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  padding: 15px;
+  overflow: auto;
+  max-height: 300px;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 1200px) {
