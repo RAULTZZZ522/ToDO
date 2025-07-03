@@ -6,7 +6,7 @@ import { getTodos, getAims, getPomodoros, callCloudFunction } from '../services/
 // 注册Chart.js组件
 Chart.register(...registerables)
 
-// 模拟数据
+// 数据状态
 const totalUsers = ref(0)
 const totalTodos = ref(0)
 const completedTodos = ref(0)
@@ -17,25 +17,17 @@ const isLoading = ref(true)
 const errorMessage = ref('')
 const cloudFunctionResult = ref(null)
 
-// 每日任务完成统计数据
-const dailyStats = ref([
-  { date: '2025-06-25', completed: 5, created: 8 },
-  { date: '2025-06-26', completed: 7, created: 6 },
-  { date: '2025-06-27', completed: 3, created: 4 },
-  { date: '2025-06-28', completed: 8, created: 9 },
-  { date: '2025-06-29', completed: 6, created: 5 },
-  { date: '2025-06-30', completed: 9, created: 7 },
-  { date: '2025-07-01', completed: 12, created: 10 }
-])
+// 每日任务完成统计数据 - 初始化为空数组，将通过API获取
+const dailyStats = ref([])
 
-// 用户活跃度数据（静态数据）
-const userActivityData = {
+// 用户活跃度数据 - 初始化为空对象，将通过API获取或计算得到
+const userActivityData = ref({
   weekly: {
-    labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+    labels: [],
     datasets: [
       {
         label: '日活跃用户',
-        data: [32, 45, 39, 28, 52, 38, 42],
+        data: [],
         backgroundColor: 'rgba(67, 97, 238, 0.2)',
         borderColor: 'rgba(67, 97, 238, 1)',
         borderWidth: 2,
@@ -44,7 +36,7 @@ const userActivityData = {
       },
       {
         label: '完成任务用户',
-        data: [18, 25, 22, 16, 28, 20, 24],
+        data: [],
         backgroundColor: 'rgba(103, 194, 58, 0.2)',
         borderColor: 'rgba(103, 194, 58, 1)',
         borderWidth: 2,
@@ -54,11 +46,11 @@ const userActivityData = {
     ]
   },
   monthly: {
-    labels: ['1周', '2周', '3周', '4周'],
+    labels: [],
     datasets: [
       {
         label: '周活跃用户',
-        data: [85, 102, 128, 96],
+        data: [],
         backgroundColor: 'rgba(67, 97, 238, 0.2)',
         borderColor: 'rgba(67, 97, 238, 1)',
         borderWidth: 2,
@@ -67,7 +59,7 @@ const userActivityData = {
       },
       {
         label: '完成任务用户',
-        data: [42, 58, 74, 51],
+        data: [],
         backgroundColor: 'rgba(103, 194, 58, 0.2)',
         borderColor: 'rgba(103, 194, 58, 1)',
         borderWidth: 2,
@@ -76,63 +68,18 @@ const userActivityData = {
       }
     ]
   }
-}
+})
 
-// 目标完成情况数据（静态数据）
-const aimsData = ref([
-  {
-    id: '6149379668864a17a044c65903cdc2f93',
-    title: '考研第二阶段',
-    category: '学习',
-    progress: 45,
-    deadline: '2025-07-15 08:00:00',
-    description: '完成数学的一轮复习',
-    todoCount: 5,
-    completedTodoCount: 2,
-    totalTime: 1000
-  },
-  {
-    id: '7a8b6c5d4e3f2g1h0i9j8k7l6m5n4o3p',
-    title: '健身计划',
-    category: '健康',
-    progress: 70,
-    deadline: '2025-07-30 08:00:00',
-    description: '坚持每周健身三次',
-    todoCount: 8,
-    completedTodoCount: 5,
-    totalTime: 720
-  },
-  {
-    id: '1q2w3e4r5t6y7u8i9o0p1a2s3d4f5g6h',
-    title: '学习Vue.js',
-    category: '技术',
-    progress: 30,
-    deadline: '2025-08-15 08:00:00',
-    description: '完成Vue.js入门到精通',
-    todoCount: 10,
-    completedTodoCount: 3,
-    totalTime: 1500
-  },
-  {
-    id: '7j8k9l0m1n2b3v4c5x6z7a8s9d0f1g2h',
-    title: '阅读计划',
-    category: '阅读',
-    progress: 85,
-    deadline: '2025-07-10 08:00:00',
-    description: '每月阅读两本书',
-    todoCount: 6,
-    completedTodoCount: 5,
-    totalTime: 500
-  }
-])
+// 目标完成情况数据 - 初始化为空数组，将通过API获取
+const aimsData = ref([])
 
-// 按照目标分类的统计数据
-const aimCategoryData = {
-  labels: ['学习', '健康', '技术', '阅读', '工作', '生活'],
+// 按照目标分类的统计数据 - 初始化为空对象，将通过API获取或计算得到
+const aimCategoryData = ref({
+  labels: [],
   datasets: [
     {
       label: '目标数量',
-      data: [8, 5, 7, 4, 6, 3],
+      data: [],
       backgroundColor: [
         'rgba(67, 97, 238, 0.7)',
         'rgba(76, 201, 240, 0.7)',
@@ -144,7 +91,7 @@ const aimCategoryData = {
       borderWidth: 0
     }
   ]
-}
+})
 
 // 当前选择的时间段
 const activePeriod = ref('weekly')
@@ -164,7 +111,7 @@ const createUserActivityChart = () => {
 
   userActivityChart = new Chart(ctx, {
     type: 'line',
-    data: activePeriod.value === 'weekly' ? userActivityData.weekly : userActivityData.monthly,
+    data: activePeriod.value === 'weekly' ? userActivityData.value.weekly : userActivityData.value.monthly,
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -209,7 +156,7 @@ const createAimCategoryChart = () => {
 
   aimCategoryChart = new Chart(ctx, {
     type: 'pie',
-    data: aimCategoryData,
+    data: aimCategoryData.value,
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -265,68 +212,289 @@ const todos = ref([])
 const aims = ref([])
 const pomodoros = ref([])
 
+// 准备七天的日期标签
+const prepareDailyStatsData = () => {
+  const result = [];
+  const today = new Date();
+
+  // 获取过去7天的日期
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(today.getDate() - i);
+
+    // 格式化日期为 YYYY-MM-DD
+    const formattedDate = date.toISOString().split('T')[0];
+
+    // 获取当天创建和完成的任务数量
+    const todayTodos = todos.value.filter(todo => {
+      const todoDate = new Date(todo.createTime).toISOString().split('T')[0];
+      return todoDate === formattedDate;
+    });
+
+    const completedTodayTodos = todayTodos.filter(todo => todo.completed);
+
+    result.push({
+      date: formattedDate,
+      created: todayTodos.length,
+      completed: completedTodayTodos.length
+    });
+  }
+
+  dailyStats.value = result;
+};
+
+// 准备用户活跃度数据
+const prepareUserActivityData = () => {
+  // 这里仅做示例，实际项目中应当从API获取真实数据
+  // 为简化，我们使用默认值
+  const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  const weeklyActiveUsers = [0, 0, 0, 0, 0, 0, 0];
+  const weeklyCompletedTaskUsers = [0, 0, 0, 0, 0, 0, 0];
+
+  userActivityData.value.weekly = {
+    labels: weekDays,
+    datasets: [
+      {
+        label: '日活跃用户',
+        data: weeklyActiveUsers,
+        backgroundColor: 'rgba(67, 97, 238, 0.2)',
+        borderColor: 'rgba(67, 97, 238, 1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
+      },
+      {
+        label: '完成任务用户',
+        data: weeklyCompletedTaskUsers,
+        backgroundColor: 'rgba(103, 194, 58, 0.2)',
+        borderColor: 'rgba(103, 194, 58, 1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
+      }
+    ]
+  };
+
+  const monthWeeks = ['1周', '2周', '3周', '4周'];
+  userActivityData.value.monthly = {
+    labels: monthWeeks,
+    datasets: [
+      {
+        label: '周活跃用户',
+        data: [0, 0, 0, 0],
+        backgroundColor: 'rgba(67, 97, 238, 0.2)',
+        borderColor: 'rgba(67, 97, 238, 1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
+      },
+      {
+        label: '完成任务用户',
+        data: [0, 0, 0, 0],
+        backgroundColor: 'rgba(103, 194, 58, 0.2)',
+        borderColor: 'rgba(103, 194, 58, 1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
+      }
+    ]
+  };
+};
+
+// 准备目标分类数据
+const prepareAimCategoryData = () => {
+  // 根据aims数据计算每个分类的数量
+  const categories = {};
+
+  console.log('准备目标分类数据，当前目标数据:', aims.value);
+
+  if (aims.value && aims.value.length > 0) {
+    aims.value.forEach(aim => {
+      const category = aim.category || '未分类';
+      categories[category] = (categories[category] || 0) + 1;
+    });
+  } else {
+    // 如果没有目标数据，添加一个默认分类
+    categories['暂无数据'] = 1;
+  }
+
+  // 将分类数据转换为图表格式
+  const categoryLabels = Object.keys(categories);
+  const categoryData = categoryLabels.map(label => categories[label]);
+
+  console.log('生成的目标分类数据:', { labels: categoryLabels, data: categoryData });
+
+  aimCategoryData.value = {
+    labels: categoryLabels,
+    datasets: [
+      {
+        label: '目标数量',
+        data: categoryData,
+        backgroundColor: [
+          'rgba(67, 97, 238, 0.7)',
+          'rgba(76, 201, 240, 0.7)',
+          'rgba(103, 194, 58, 0.7)',
+          'rgba(247, 37, 133, 0.7)',
+          'rgba(255, 173, 13, 0.7)',
+          'rgba(58, 134, 255, 0.7)'
+        ],
+        borderWidth: 0
+      }
+    ]
+  };
+};
+
 // 加载数据
 const loadData = async () => {
-  isLoading.value = true
-  errorMessage.value = ''
-  
+  isLoading.value = true;
+  errorMessage.value = '';
+
   try {
+    console.log('开始加载仪表盘数据...');
+
+    // 首先尝试使用云函数获取统计数据
+    let statsData = null;
+    try {
+      console.log('尝试调用getStatistics云函数获取统计数据');
+      const result = await callCloudFunction('getStatistics', {});
+      statsData = result?.result?.stats;
+      cloudFunctionResult.value = result;
+      console.log('云函数获取的统计数据:', statsData);
+    } catch (cloudFnError) {
+      console.error('调用云函数失败，将尝试直接查询数据:', cloudFnError);
+    }
+
     // 并行获取所有数据
-    const [todosData, aimsData, pomodorosData] = await Promise.all([
-      getTodos(),
-      getAims(),
-      getPomodoros()
-    ])
-    
-    todos.value = todosData
-    aims.value = aimsData
-    pomodoros.value = pomodorosData
-    
-    console.log('所有数据加载成功', {
+    console.log('开始并行获取todos, aims, pomodoros数据');
+    let todosData = [], aimsResult = [], pomodorosData = [];
+
+    try {
+      todosData = await getTodos().catch(err => {
+        console.error('获取todos数据失败:', err);
+        return [];
+      });
+      console.log('成功获取todos数据:', todosData?.length || 0);
+    } catch (todoError) {
+      console.error('获取todos数据出错:', todoError);
+    }
+
+    try {
+      aimsResult = await getAims().catch(err => {
+        console.error('获取aims数据失败:', err);
+        return [];
+      });
+      console.log('成功获取aims数据:', aimsResult?.length || 0);
+    } catch (aimError) {
+      console.error('获取aims数据出错:', aimError);
+    }
+
+    try {
+      pomodorosData = await getPomodoros().catch(err => {
+        console.error('获取pomodoros数据失败:', err);
+        return [];
+      });
+      console.log('成功获取pomodoros数据:', pomodorosData?.length || 0);
+    } catch (pomodoroError) {
+      console.error('获取pomodoros数据出错:', pomodoroError);
+    }
+
+    console.log('数据获取结果:', {
+      todos: todosData?.length || 0,
+      aims: aimsResult?.length || 0,
+      pomodoros: pomodorosData?.length || 0
+    });
+
+    // 确保数据是数组类型
+    todos.value = Array.isArray(todosData) ? todosData : [];
+    aims.value = Array.isArray(aimsResult) ? aimsResult : [];
+    pomodoros.value = Array.isArray(pomodorosData) ? pomodorosData : [];
+    aimsData.value = Array.isArray(aimsResult) ? aimsResult : [];
+
+    console.log('设置后的数据状态:', {
       todos: todos.value.length,
       aims: aims.value.length,
+      aimsData: aimsData.value.length,
       pomodoros: pomodoros.value.length
-    })
+    });
 
-    totalUsers.value = 158
-    totalTodos.value = 467
-    completedTodos.value = 312
-    totalPomodoros.value = 1289
-    totalAims.value = 33
-    completedAims.value = 18
+    // 如果从云函数获取到了数据，使用云函数的统计结果
+    if (statsData) {
+      totalTodos.value = statsData.todos?.total || todosData?.length || 0;
+      completedTodos.value = statsData.todos?.completed || 0;
+      totalAims.value = statsData.aims?.total || aimsResult?.length || 0;
+      completedAims.value = statsData.aims?.completed || 0;
+      totalPomodoros.value = statsData.pomodoros?.total || pomodorosData?.length || 0;
+    } else {
+      // 否则使用前端计算的统计数据
+      totalTodos.value = todosData?.length || 0;
+      completedTodos.value = todosData?.filter(todo => todo.completed)?.length || 0;
+      totalAims.value = aimsResult?.length || 0;
+      completedAims.value = aimsResult?.filter(aim => aim.progress === 100)?.length || 0;
+      totalPomodoros.value = pomodorosData?.length || 0;
+    }
+
+    // 更新图表数据
+    prepareDailyStatsData();
+    prepareUserActivityData();
+    prepareAimCategoryData();
+
+    console.log('数据统计:', {
+      totalTodos: totalTodos.value,
+      completedTodos: completedTodos.value,
+      totalAims: totalAims.value,
+      completedAims: completedAims.value,
+      totalPomodoros: totalPomodoros.value
+    });
 
     // 图表初始化
-    createUserActivityChart()
-    createAimCategoryChart()
+    createUserActivityChart();
+    createAimCategoryChart();
+
+    console.log('仪表盘数据加载完成');
   } catch (error) {
-    console.error('加载数据失败:', error)
-    errorMessage.value = `数据加载失败: ${error.message || '未知错误'}`
+    console.error('加载数据失败:', error);
+    errorMessage.value = `数据加载失败: ${error.message || '未知错误'}`;
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
 // 调用云函数示例
 const callCustomCloudFunction = async () => {
   try {
-    // 假设您已经创建了一个名为'getStatistics'的云函数
-    // 用于获取用户待办事项和番茄钟的统计数据
+    isLoading.value = true;
+    console.log('开始调用getStatistics云函数...');
+
+    // 调用getStatistics云函数
     const result = await callCloudFunction('getStatistics', {
-      userId: 'o2ch25FQ2FpXs1fYC3JyOWo-hUKo'  // 可以传递参数给云函数
-    })
-    
-    cloudFunctionResult.value = result
-    console.log('云函数调用成功:', result)
+      // 如果需要获取特定用户的数据，可以传入userId
+      // userId: 'o2ch25FQ2FpXs1fYC3JyOWo-hUKo'  
+    });
+
+    cloudFunctionResult.value = result;
+    console.log('云函数调用成功:', result);
+
+    // 如果云函数返回了统计数据，更新页面上的统计信息
+    if (result?.result?.stats) {
+      const stats = result.result.stats;
+      totalTodos.value = stats.todos?.total || 0;
+      completedTodos.value = stats.todos?.completed || 0;
+      totalAims.value = stats.aims?.total || 0;
+      completedAims.value = stats.aims?.completed || 0;
+      totalPomodoros.value = stats.pomodoros?.total || 0;
+    }
   } catch (error) {
-    console.error('云函数调用失败:', error)
-    errorMessage.value = `云函数调用失败: ${error.message || '未知错误'}`
+    console.error('云函数调用失败:', error);
+    errorMessage.value = `云函数调用失败: ${error.message || '未知错误'}`;
+  } finally {
+    isLoading.value = false;
   }
-}
+};
 
 // 页面加载时获取数据
 onMounted(() => {
-  loadData()
-})
+  loadData();
+});
 </script>
 
 <template>
@@ -561,20 +729,13 @@ onMounted(() => {
         <div class="loading-spinner"></div>
         <p>加载数据中，请稍候...</p>
       </div>
-      
+
       <div v-else-if="errorMessage" class="error-container">
         <p class="error-message">{{ errorMessage }}</p>
         <button @click="loadData" class="retry-btn">重试</button>
       </div>
-      
-      <div v-else class="cloud-function-section">
-        <h2>云函数调用示例</h2>
-        <button @click="callCustomCloudFunction" class="cloud-btn">调用统计云函数</button>
-        
-        <div v-if="cloudFunctionResult" class="result-container">
-          <pre>{{ JSON.stringify(cloudFunctionResult, null, 2) }}</pre>
-        </div>
-      </div>
+
+
     </div>
   </div>
 </template>
@@ -1003,8 +1164,13 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .error-container {
@@ -1018,7 +1184,8 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.retry-btn, .cloud-btn {
+.retry-btn,
+.cloud-btn {
   background-color: #3498db;
   color: white;
   border: none;
@@ -1028,7 +1195,8 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.retry-btn:hover, .cloud-btn:hover {
+.retry-btn:hover,
+.cloud-btn:hover {
   background-color: #2980b9;
 }
 
