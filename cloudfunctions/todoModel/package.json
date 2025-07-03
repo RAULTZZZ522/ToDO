@@ -1,7 +1,7 @@
 {
   "name": "todoModel",
   "version": "1.0.0",
-  "description": "Todo model cloud function for managing todo items",
+  "description": "Todo Model API",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

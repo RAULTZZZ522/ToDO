@@ -269,7 +269,7 @@ const pomodoros = ref([])
 const loadData = async () => {
   isLoading.value = true
   errorMessage.value = ''
-
+  
   try {
     // 并行获取所有数据
     const [todosData, aimsData, pomodorosData] = await Promise.all([
@@ -277,11 +277,11 @@ const loadData = async () => {
       getAims(),
       getPomodoros()
     ])
-
+    
     todos.value = todosData
     aims.value = aimsData
     pomodoros.value = pomodorosData
-
+    
     console.log('所有数据加载成功', {
       todos: todos.value.length,
       aims: aims.value.length,
@@ -314,7 +314,7 @@ const callCustomCloudFunction = async () => {
     const result = await callCloudFunction('getStatistics', {
       userId: 'o2ch25FQ2FpXs1fYC3JyOWo-hUKo'  // 可以传递参数给云函数
     })
-
+    
     cloudFunctionResult.value = result
     console.log('云函数调用成功:', result)
   } catch (error) {
@@ -561,16 +561,16 @@ onMounted(() => {
         <div class="loading-spinner"></div>
         <p>加载数据中，请稍候...</p>
       </div>
-
+      
       <div v-else-if="errorMessage" class="error-container">
         <p class="error-message">{{ errorMessage }}</p>
         <button @click="loadData" class="retry-btn">重试</button>
       </div>
-
+      
       <div v-else class="cloud-function-section">
         <h2>云函数调用示例</h2>
         <button @click="callCustomCloudFunction" class="cloud-btn">调用统计云函数</button>
-
+        
         <div v-if="cloudFunctionResult" class="result-container">
           <pre>{{ JSON.stringify(cloudFunctionResult, null, 2) }}</pre>
         </div>
@@ -1003,13 +1003,8 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .error-container {
@@ -1023,8 +1018,7 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.retry-btn,
-.cloud-btn {
+.retry-btn, .cloud-btn {
   background-color: #3498db;
   color: white;
   border: none;
@@ -1034,8 +1028,7 @@ onMounted(() => {
   font-size: 14px;
 }
 
-.retry-btn:hover,
-.cloud-btn:hover {
+.retry-btn:hover, .cloud-btn:hover {
   background-color: #2980b9;
 }
 

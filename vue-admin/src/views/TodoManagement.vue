@@ -1,10 +1,12 @@
 <script setup>
-import { ref, onMounted, computed, onBeforeUnmount } from 'vue'
-import { getTodos, addTodo, updateTodo, deleteTodo, watchCollection, unwatchCollection } from '../services/cloudDbService'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
+import { getTodos, addTodo, updateTodo, deleteTodo } from '../services/cloudDbService'
+import { startWatching, stopWatching } from '../services/realtimeService'
 
 // 待办事项数据
 const todos = ref([])
 const isInitialized = ref(false)
+const isRealtime = ref(false) // 是否开启实时更新
 
 // 搜索和筛选
 const searchKeyword = ref('')
@@ -32,7 +34,10 @@ const handleAddTodo = () => {
   isLoading.value = true;
   addTodo(newTodo.value)
     .then(res => {
-      // 成功添加后不需要手动刷新，实时监听会自动更新
+      // 如果没有开启实时监听，则需要手动刷新数据
+      if (!isRealtime.value) {
+        fetchTodos();
+      }
       showAddForm.value = false;
       // 重置表单
       newTodo.value = {
@@ -106,10 +111,13 @@ const saveTodoChanges = () => {
   isLoading.value = true;
   updateTodo(editTodo.value._id, editTodo.value)
     .then(res => {
-      // 更新本地数据（实际上实时监听会自动更新，这里是为了立即更新UI）
-      const index = todos.value.findIndex(t => t._id === editTodo.value._id);
-      if (index !== -1) {
-        todos.value[index] = { ...editTodo.value, updateTime: new Date().toString() };
+      // 如果没有开启实时监听，则需要手动更新本地数据
+      if (!isRealtime.value) {
+        // 更新本地数据
+        const index = todos.value.findIndex(t => t._id === editTodo.value._id);
+        if (index !== -1) {
+          todos.value[index] = { ...editTodo.value, updateTime: new Date().toString() };
+        }
       }
       currentTodo.value = { ...editTodo.value, updateTime: new Date().toString() };
       editMode.value = false;
@@ -132,8 +140,10 @@ const handleDeleteTodo = (todoId) => {
   isLoading.value = true;
   deleteTodo(todoId)
     .then(() => {
-      // 从本地数据中删除（实际上实时监听会自动更新，这里是为了立即更新UI）
-      todos.value = todos.value.filter(t => t._id !== todoId);
+      // 如果没有开启实时监听，则需要手动更新本地数据
+      if (!isRealtime.value) {
+        todos.value = todos.value.filter(t => t._id !== todoId);
+      }
       if (currentTodo.value && currentTodo.value._id === todoId) {
         currentTodo.value = null;
       }
@@ -163,7 +173,11 @@ const importanceColor = {
 
 // 搜索任务
 const searchTodos = () => {
-  fetchTodos();
+  // 如果开启了实时监听，筛选已经通过computed实现
+  // 如果没有开启实时监听，则需要从服务器重新获取数据
+  if (!isRealtime.value) {
+    fetchTodos();
+  }
 }
 
 // 清空筛选
@@ -193,9 +207,11 @@ const toggleTaskStatus = (todo) => {
   isLoading.value = true;
   updateTodo(todo._id, { completed: newStatus })
     .then(() => {
-      // 更新本地数据（实际上实时监听会自动更新，这里是为了立即更新UI）
-      todo.completed = newStatus;
-      todo.updateTime = new Date().toString();
+      // 如果没有开启实时监听，则需要手动更新本地数据
+      if (!isRealtime.value) {
+        todo.completed = newStatus;
+        todo.updateTime = new Date().toString();
+      }
     })
     .catch(err => {
       console.error('更新任务状态失败:', err);
@@ -224,21 +240,71 @@ const fetchTodos = () => {
     });
 };
 
-// 处理数据变化
-const handleDataChange = (snapshot) => {
-  console.log('待办事项数据变化:', snapshot);
+// 处理实时数据变化
+const handleRealtimeChange = (snapshot) => {
+  if (!snapshot || !snapshot.docChanges) {
+    return;
+  }
 
-  // 刷新数据列表
-  fetchTodos();
+  const changes = snapshot.docChanges;
+
+  // 处理每个变更
+  changes.forEach(change => {
+    const doc = change.doc;
+    const id = doc._id;
+
+    if (change.dataType === 'add') {
+      // 新增数据
+      // 检查是否已存在（避免重复添加）
+      const exists = todos.value.some(item => item._id === id);
+      if (!exists) {
+        todos.value.push(doc);
+      }
+    } else if (change.dataType === 'update') {
+      // 更新数据
+      const index = todos.value.findIndex(item => item._id === id);
+      if (index > -1) {
+        todos.value[index] = doc;
+
+        // 如果正在查看的是被更新的任务，同步更新
+        if (currentTodo.value && currentTodo.value._id === id) {
+          currentTodo.value = { ...doc };
+        }
+      }
+    } else if (change.dataType === 'remove') {
+      // 删除数据
+      todos.value = todos.value.filter(item => item._id !== id);
+
+      // 如果正在查看的是被删除的任务，关闭详情面板
+      if (currentTodo.value && currentTodo.value._id === id) {
+        currentTodo.value = null;
+      }
+    }
+  });
 };
 
-// 设置实时数据监听
-const setupRealTimeWatcher = async () => {
-  try {
-    await watchCollection('todos', handleDataChange);
-    console.log('已设置待办事项实时监听');
-  } catch (error) {
-    console.error('设置实时监听失败:', error);
+// 切换实时监听状态
+const toggleRealtime = async () => {
+  isRealtime.value = !isRealtime.value;
+
+  if (isRealtime.value) {
+    // 开启实时监听
+    try {
+      await startWatching('todos', handleRealtimeChange);
+      console.log('已开启实时数据监听');
+    } catch (error) {
+      console.error('开启实时监听失败:', error);
+      alert('开启实时监听失败: ' + (error.message || '未知错误'));
+      isRealtime.value = false;
+    }
+  } else {
+    // 关闭实时监听
+    try {
+      await stopWatching('todos');
+      console.log('已关闭实时数据监听');
+    } catch (error) {
+      console.error('关闭实时监听失败:', error);
+    }
   }
 };
 
@@ -247,15 +313,18 @@ const refreshTodos = () => {
   fetchTodos();
 }
 
-// 初始化数据和实时监听
+// 初始化数据
 onMounted(() => {
   fetchTodos();
-  setupRealTimeWatcher();
+  // 默认自动开启实时监听
+  toggleRealtime();
 })
 
-// 在组件销毁前取消监听
-onBeforeUnmount(() => {
-  unwatchCollection('todos');
+// 组件卸载时清理监听器
+onUnmounted(() => {
+  if (isRealtime.value) {
+    stopWatching('todos').catch(console.error);
+  }
 })
 </script>
 
@@ -263,9 +332,14 @@ onBeforeUnmount(() => {
   <div class="todo-management">
     <div class="page-header">
       <h1>任务管理</h1>
-      <button class="refresh-btn" @click="refreshTodos" :disabled="isLoading">
-        {{ isLoading ? '加载中...' : '刷新' }}
-      </button>
+      <div class="header-actions">
+        <button class="realtime-btn" :class="{ active: isRealtime }" @click="toggleRealtime" :disabled="isLoading">
+          {{ isRealtime ? '实时监听已开启' : '实时监听已关闭' }}
+        </button>
+        <button class="refresh-btn" @click="refreshTodos" :disabled="isLoading">
+          {{ isLoading ? '加载中...' : '刷新' }}
+        </button>
+      </div>
     </div>
 
     <div class="content-panel">
@@ -397,8 +471,8 @@ onBeforeUnmount(() => {
                     {{ importanceText[todo.importance] }}
                   </span>
                 </td>
-                <td>{{ todo.userNickname || '未知用户' }}</td>
-                <td class="openid-col">{{ todo._openid || '无ID' }}</td>
+                <td>{{ todo.userNickname }}</td>
+                <td>{{ todo._openid || '无' }}</td>
                 <td>{{ formatDate(todo.createTime) }}</td>
                 <td>
                   <div class="action-buttons">
@@ -431,6 +505,11 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="detail-row">
+              <span class="detail-label">用户ID:</span>
+              <span class="detail-value">{{ currentTodo._openid || '无用户ID' }}</span>
+            </div>
+
+            <div class="detail-row">
               <span class="detail-label">标题:</span>
               <span class="detail-value">{{ currentTodo.title }}</span>
             </div>
@@ -457,12 +536,7 @@ onBeforeUnmount(() => {
 
             <div class="detail-row">
               <span class="detail-label">用户:</span>
-              <span class="detail-value">{{ currentTodo.userNickname || '未知用户' }}</span>
-            </div>
-
-            <div class="detail-row">
-              <span class="detail-label">用户ID:</span>
-              <span class="detail-value">{{ currentTodo._openid || '无ID' }}</span>
+              <span class="detail-value">{{ currentTodo.userNickname }}</span>
             </div>
 
             <div class="detail-row">
@@ -630,20 +704,6 @@ onBeforeUnmount(() => {
   margin-right: 10px;
 }
 
-.action-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: all 0.3s ease;
-  color: white;
-}
-
-.view-btn {
-  background-color: var(--primary-color);
-}
-
 .delete-btn {
   background-color: var(--danger-color);
 }
@@ -651,6 +711,32 @@ onBeforeUnmount(() => {
 .action-buttons {
   display: flex;
   gap: 5px;
+}
+
+.action-btn {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.3s ease;
+  color: white;
+}
+
+.view-btn {
+  background-color: #3498db;
+}
+
+.view-btn:hover {
+  background-color: #2980b9;
+}
+
+.delete-btn {
+  background-color: #e74c3c;
+}
+
+.delete-btn:hover {
+  background-color: #c0392b;
 }
 
 .detail-actions {
@@ -988,5 +1074,29 @@ onBeforeUnmount(() => {
     gap: 8px;
     margin-top: 16px;
   }
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.realtime-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  background-color: #95a5a6;
+  color: white;
+  transition: background-color 0.3s;
+}
+
+.realtime-btn.active {
+  background-color: #2ecc71;
+}
+
+.realtime-btn:hover {
+  opacity: 0.9;
 }
 </style>
