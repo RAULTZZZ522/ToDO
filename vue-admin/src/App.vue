@@ -2,14 +2,13 @@
 import { ref } from 'vue'
 import router from './router'
 
-const isCollapsed = ref(false)
 const currentPath = ref('/dashboard')
 
 // 导航菜单项
 const menuItems = [
   { path: '/dashboard', name: '数据统计', icon: 'icon-dashboard' },
   { path: '/users', name: '用户管理', icon: 'icon-user' },
-  { path: '/todos', name: '任务管理', icon: 'icon-todo' },
+  { path: '/todos', name: '日程管理', icon: 'icon-todo' },
   { path: '/pomodoros', name: '番茄钟管理', icon: 'icon-clock' }
 ]
 
@@ -18,27 +17,17 @@ const navigateTo = (path) => {
   currentPath.value = path
   router.push(path)
 }
-
-// 切换侧边栏
-const toggleSidebar = () => {
-  isCollapsed.value = !isCollapsed.value
-}
 </script>
 
 <template>
-  <div class="admin-layout" :class="{ 'sidebar-collapsed': isCollapsed }">
+  <div class="admin-layout">
     <!-- 侧边栏 -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="logo">
-          <span v-if="!isCollapsed">ToDO管理系统</span>
-          <span v-else>TD</span>
+          <span>ToDO管理系统</span>
         </div>
-        <button class="collapse-btn" @click="toggleSidebar">
-          <span class="collapse-icon">{{ isCollapsed ? '›' : '‹' }}</span>
-        </button>
       </div>
-      
       <nav class="menu">
         <div 
           v-for="item in menuItems" 
@@ -48,11 +37,10 @@ const toggleSidebar = () => {
           @click="navigateTo(item.path)"
         >
           <div class="menu-icon" :class="item.icon"></div>
-          <span class="menu-title" v-if="!isCollapsed">{{ item.name }}</span>
+          <span class="menu-title">{{ item.name }}</span>
         </div>
       </nav>
     </aside>
-    
     <!-- 主内容区 -->
     <div class="main-container">
       <header class="header">
@@ -62,11 +50,10 @@ const toggleSidebar = () => {
         <div class="header-right">
           <div class="user-profile">
             <div class="avatar">管</div>
-            <span class="username" v-if="!isCollapsed">管理员</span>
+            <span class="username">管理员</span>
           </div>
         </div>
       </header>
-      
       <main class="content">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
@@ -83,7 +70,7 @@ const toggleSidebar = () => {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: 'Microsoft YaHei', sans-serif;
 }
 
 :root {
@@ -126,17 +113,17 @@ body {
   flex-direction: column;
   box-shadow: var(--shadow);
   z-index: 10;
-}
-
-.sidebar-collapsed .sidebar {
-  width: 70px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
 }
 
 .sidebar-header {
   height: 64px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 0 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -146,19 +133,6 @@ body {
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
-}
-
-.collapse-btn {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
 }
 
 .menu {
@@ -193,10 +167,6 @@ body {
   justify-content: center;
 }
 
-.sidebar-collapsed .menu-icon {
-  margin-right: 0;
-}
-
 .menu-title {
   white-space: nowrap;
 }
@@ -207,6 +177,7 @@ body {
   display: flex;
   flex-direction: column;
   transition: var(--transition);
+  margin-left: 240px;
 }
 
 .header {
@@ -245,8 +216,8 @@ body {
   margin-right: 10px;
 }
 
-.sidebar-collapsed .username {
-  display: none;
+.username {
+  display: inline;
 }
 
 .content {

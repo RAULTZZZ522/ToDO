@@ -1,43 +1,14 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { getUsers } from '../services/cloudDbService'
 
-// 模拟用户数据
-const users = ref([
-  {
-    _openid: 'o2ch25FQ2FpXs1fYC3JyOWo-hUKo',
-    nickname: '用户1',
-    avatarUrl: '',
-    taskCount: 12,
-    completedCount: 8,
-    pomodoroCount: 25,
-    lastActive: '2025-07-01 08:53:28',
-    createTime: '2025-06-15 14:22:45'
-  },
-  {
-    _openid: 'user123456789',
-    nickname: '用户2',
-    avatarUrl: '',
-    taskCount: 8,
-    completedCount: 3,
-    pomodoroCount: 12,
-    lastActive: '2025-06-30 18:21:07',
-    createTime: '2025-06-12 09:15:33'
-  },
-  {
-    _openid: 'user987654321',
-    nickname: '用户3',
-    avatarUrl: '',
-    taskCount: 20,
-    completedCount: 15,
-    pomodoroCount: 42,
-    lastActive: '2025-07-01 12:30:45',
-    createTime: '2025-06-10 15:45:12'
-  }
-])
+// 用户数据状态
+const users = ref([])
+const isLoading = ref(true)
+const errorMessage = ref('')
 
 // 搜索关键词
 const searchKeyword = ref('')
-const isLoading = ref(false)
 const selectedStatus = ref('all')
 
 // 状态选项
@@ -52,27 +23,27 @@ const filteredUsers = computed(() => {
   if (!searchKeyword.value && selectedStatus.value === 'all') {
     return users.value
   }
-  
+
   return users.value.filter(user => {
     // 关键词筛选
-    const matchKeyword = !searchKeyword.value || 
-      user.nickname.toLowerCase().includes(searchKeyword.value.toLowerCase()) || 
-      user._openid.includes(searchKeyword.value)
-    
+    const matchKeyword = !searchKeyword.value ||
+      (user.nickname && user.nickname.toLowerCase().includes(searchKeyword.value.toLowerCase())) ||
+      (user._openid && user._openid.includes(searchKeyword.value))
+
     // 状态筛选
     let matchStatus = true
     if (selectedStatus.value !== 'all') {
       const lastActiveDate = new Date(user.lastActive)
       const now = new Date()
       const daysDiff = Math.floor((now - lastActiveDate) / (1000 * 60 * 60 * 24))
-      
+
       if (selectedStatus.value === 'active') {
         matchStatus = daysDiff < 7 // 7天内活跃
       } else if (selectedStatus.value === 'inactive') {
         matchStatus = daysDiff >= 7
       }
     }
-    
+
     return matchKeyword && matchStatus
   })
 })
@@ -85,6 +56,64 @@ const viewUserDetail = (user) => {
   currentUser.value = user
 }
 
+// 加载用户数据
+const loadUsers = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    console.log('开始获取用户数据...')
+    const data = await getUsers()
+    console.log('获取用户数据成功:', data?.length || 0)
+
+    // 确保数据是数组
+    users.value = Array.isArray(data) ? data : []
+
+    // 格式化日期和数据
+    users.value = users.value.map(user => {
+      // 确保基本字段存在
+      const formattedUser = {
+        ...user,
+        nickname: user.nickname || '未知用户',
+        taskCount: user.taskCount || 0,
+        completedCount: user.completedCount || 0,
+        pomodoroCount: user.pomodoroCount || 0
+      }
+
+      // 格式化日期
+      if (user.lastActive) {
+        try {
+          const date = new Date(user.lastActive)
+          formattedUser.lastActive = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+        } catch (e) {
+          formattedUser.lastActive = '未知'
+        }
+      } else {
+        formattedUser.lastActive = '未知'
+      }
+
+      if (user.createTime) {
+        try {
+          const date = new Date(user.createTime)
+          formattedUser.createTime = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+        } catch (e) {
+          formattedUser.createTime = '未知'
+        }
+      } else {
+        formattedUser.createTime = '未知'
+      }
+
+      return formattedUser
+    })
+  } catch (error) {
+    console.error('获取用户数据失败:', error)
+    errorMessage.value = `获取数据失败: ${error.message || '未知错误'}`
+    users.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
 // 搜索用户
 const searchUsers = () => {
   isLoading.value = true
@@ -93,10 +122,21 @@ const searchUsers = () => {
   }, 300)
 }
 
+// 刷新数据
+const refreshData = () => {
+  loadUsers()
+}
+
 // 计算完成率
 const getCompletionRate = (user) => {
-  if (!user.taskCount) return 0
+  if (!user || !user.taskCount || user.taskCount <= 0) return 0
   return Math.round(user.completedCount / user.taskCount * 100)
+}
+
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return '未知'
+  return dateString
 }
 
 // 清空搜索
@@ -108,7 +148,7 @@ const clearSearch = () => {
 
 // 初始化数据
 onMounted(() => {
-  // 模拟数据已加载
+  loadUsers()
 })
 </script>
 
@@ -117,25 +157,30 @@ onMounted(() => {
     <div class="page-header">
       <h1>用户管理</h1>
       <div class="actions">
-        <button class="refresh-btn">刷新</button>
+        <button class="refresh-btn" @click="refreshData">刷新</button>
       </div>
     </div>
-    
-    <div class="content-panel">
+
+    <div v-if="isLoading && users.length === 0" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>加载数据中，请稍候...</p>
+    </div>
+
+    <div v-else-if="errorMessage && users.length === 0" class="error-container">
+      <p class="error-message">{{ errorMessage }}</p>
+      <button @click="loadUsers" class="retry-btn">重试</button>
+    </div>
+
+    <div v-else class="content-panel">
       <div class="search-panel">
         <div class="search-box">
-          <input 
-            type="text" 
-            v-model="searchKeyword" 
-            @keyup.enter="searchUsers"
-            placeholder="搜索用户名或ID" 
-          />
+          <input type="text" v-model="searchKeyword" @keyup.enter="searchUsers" placeholder="搜索用户名或ID" />
           <button class="search-btn" @click="searchUsers">
             <span v-if="!isLoading">搜索</span>
             <span v-else>搜索中...</span>
           </button>
         </div>
-        
+
         <div class="filter-box">
           <div class="filter-item">
             <label>状态:</label>
@@ -145,11 +190,11 @@ onMounted(() => {
               </option>
             </select>
           </div>
-          
+
           <button class="clear-btn" @click="clearSearch">重置</button>
         </div>
       </div>
-      
+
       <div class="result-panel">
         <div class="table-wrapper">
           <table class="data-table">
@@ -176,13 +221,13 @@ onMounted(() => {
                 <td>{{ user.taskCount }}</td>
                 <td>
                   <div class="completion-wrapper">
-                    <div class="completion-bar" :style="{width: getCompletionRate(user) + '%'}"></div>
+                    <div class="completion-bar" :style="{ width: getCompletionRate(user) + '%' }"></div>
                     <span class="completion-text">{{ getCompletionRate(user) }}%</span>
                   </div>
                 </td>
                 <td>{{ user.pomodoroCount }}</td>
-                <td>{{ user.lastActive }}</td>
-                <td>{{ user.createTime }}</td>
+                <td>{{ formatDate(user.lastActive) }}</td>
+                <td>{{ formatDate(user.createTime) }}</td>
                 <td>
                   <button class="action-btn view-btn" @click="viewUserDetail(user)">详情</button>
                 </td>
@@ -193,13 +238,13 @@ onMounted(() => {
             </tbody>
           </table>
         </div>
-        
+
         <div class="user-detail" v-if="currentUser">
           <div class="detail-header">
             <h2>用户详情</h2>
             <button class="close-btn" @click="currentUser = null">×</button>
           </div>
-          
+
           <div class="detail-body">
             <div class="detail-profile">
               <div class="user-avatar large">
@@ -210,7 +255,7 @@ onMounted(() => {
                 <div class="user-id">ID: {{ currentUser._openid }}</div>
               </div>
             </div>
-            
+
             <div class="detail-stats">
               <div class="stat-item">
                 <div class="stat-value">{{ currentUser.taskCount }}</div>
@@ -229,30 +274,30 @@ onMounted(() => {
                 <div class="stat-label">番茄钟</div>
               </div>
             </div>
-            
+
             <div class="detail-section">
               <h4>用户信息</h4>
               <div class="info-grid">
                 <div class="info-item">
                   <div class="info-label">注册时间</div>
-                  <div class="info-value">{{ currentUser.createTime }}</div>
+                  <div class="info-value">{{ formatDate(currentUser.createTime) }}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">最后活跃</div>
-                  <div class="info-value">{{ currentUser.lastActive }}</div>
+                  <div class="info-value">{{ formatDate(currentUser.lastActive) }}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">任务完成率</div>
                   <div class="info-value">
                     <div class="completion-wrapper">
-                      <div class="completion-bar" :style="{width: getCompletionRate(currentUser) + '%'}"></div>
+                      <div class="completion-bar" :style="{ width: getCompletionRate(currentUser) + '%' }"></div>
                       <span class="completion-text">{{ getCompletionRate(currentUser) }}%</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             <div class="detail-actions">
               <button class="detail-action-btn primary">查看任务</button>
               <button class="detail-action-btn danger">禁用账户</button>
@@ -295,6 +340,54 @@ onMounted(() => {
 
 .refresh-btn:hover {
   background-color: rgba(67, 97, 238, 0.1);
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid transparent;
+  border-top-color: var(--primary-color);
+  border-right-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.8s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-container {
+  text-align: center;
+  margin: 50px 0;
+}
+
+.error-message {
+  color: #e74c3c;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.retry-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retry-btn:hover {
+  background-color: #2980b9;
 }
 
 .content-panel {
@@ -647,13 +740,13 @@ onMounted(() => {
   .result-panel {
     flex-direction: column;
   }
-  
+
   .user-detail {
     width: 100%;
     border-left: none;
     border-top: 1px solid var(--border-color);
   }
-  
+
   .detail-stats {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -663,13 +756,13 @@ onMounted(() => {
   .search-panel {
     flex-direction: column;
   }
-  
+
   .search-box {
     max-width: 100%;
   }
-  
+
   .filter-box {
     flex-wrap: wrap;
   }
 }
-</style> 
+</style>

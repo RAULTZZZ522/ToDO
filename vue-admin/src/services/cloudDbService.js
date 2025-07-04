@@ -2,6 +2,14 @@
 // 使用 identityless 模式初始化云开发 SDK
 import { initCloud } from './cloudService';
 
+// 存储成功的集合名称
+let successfulCollections = {
+  todos: 'todos',
+  pomodoro: null,
+  aim: null,
+  users: null
+};
+
 /**
  * 调用云函数
  * @param {String} name 云函数名称
@@ -230,42 +238,106 @@ export const deleteTodo = async (id) => {
  */
 export const getPomodoros = async (options = {}) => {
   try {
+    console.log('开始获取番茄钟数据');
     const cloud = await initCloud();
     if (!cloud) {
+      console.error('云环境未初始化');
       return Promise.reject(new Error('云环境未初始化'));
     }
 
+    console.log('云环境初始化成功，准备查询番茄钟数据');
     const db = cloud.database();
-    const pomodoroCollection = db.collection('pomodoro');
 
-    let query = pomodoroCollection;
+    // 如果之前已经找到了有效的集合名称，直接使用
+    if (successfulCollections.pomodoro) {
+      console.log(`使用已知有效的番茄钟集合: ${successfulCollections.pomodoro}`);
+      try {
+        const pomodoroCollection = db.collection(successfulCollections.pomodoro);
+        let query = pomodoroCollection;
 
-    // 添加查询条件
-    if (options.where) {
-      query = query.where(options.where);
+        // 添加查询条件
+        if (options.where) query = query.where(options.where);
+        if (options.skip) query = query.skip(options.skip);
+        if (options.limit) query = query.limit(options.limit);
+
+        const result = await query.get();
+        console.log(`从集合 ${successfulCollections.pomodoro} 获取番茄钟数据成功:`, result);
+        return result.data || [];
+      } catch (error) {
+        console.error(`从已知集合 ${successfulCollections.pomodoro} 获取数据失败，将尝试其他集合:`, error);
+        // 重置集合名称，将尝试其他集合
+        successfulCollections.pomodoro = null;
+      }
     }
 
-    // 分页
-    if (options.skip) {
-      query = query.skip(options.skip);
+    // 尝试不同的集合名称
+    // 在微信云开发中，集合名称可能是大小写敏感的
+    const possibleCollectionNames = ['pomodoro', 'Pomodoro', 'POMODORO', 'pomodoroList', 'PomodoroList', 'pomodoros', 'Pomodoros'];
+
+    // 尝试列出所有集合
+    try {
+      console.log('尝试获取所有集合名称');
+      // 这段代码在某些微信云环境下可能不支持
+      const collections = await db.getCollectionList();
+      console.log('可用的集合列表:', collections);
+    } catch (listError) {
+      console.warn('获取集合列表失败，将使用预定义集合名称:', listError);
     }
 
-    if (options.limit) {
-      query = query.limit(options.limit);
+    // 尝试从每个可能的集合中获取数据
+    let result = [];
+    let successCollection = '';
+
+    for (const collectionName of possibleCollectionNames) {
+      try {
+        console.log(`尝试从集合 ${collectionName} 获取数据`);
+        const pomodoroCollection = db.collection(collectionName);
+
+        let query = pomodoroCollection;
+
+        // 添加查询条件
+        if (options.where) {
+          query = query.where(options.where);
+        }
+
+        // 分页
+        if (options.skip) {
+          query = query.skip(options.skip);
+        }
+
+        if (options.limit) {
+          query = query.limit(options.limit);
+        }
+
+        // 尝试获取一条记录以验证集合是否存在且可访问
+        const testResult = await query.limit(1).get();
+        console.log(`集合 ${collectionName} 测试结果:`, testResult);
+
+        if (testResult && testResult.data && testResult.data.length > 0) {
+          // 找到有效集合，执行完整查询
+          const fullResult = await query.get();
+          result = fullResult.data || [];
+          successCollection = collectionName;
+          // 存储成功的集合名称以供后续使用
+          successfulCollections.pomodoro = collectionName;
+          console.log(`成功从集合 ${collectionName} 获取番茄钟数据:`, result);
+          break;
+        }
+      } catch (collectionError) {
+        console.warn(`从集合 ${collectionName} 获取数据失败:`, collectionError);
+      }
     }
 
-    // 执行查询
-    return query.get()
-      .then(res => {
-        return res.data;
-      })
-      .catch(err => {
-        console.error('获取番茄钟记录失败:', err);
-        throw err;
-      });
+    if (result.length > 0) {
+      console.log(`最终从集合 ${successCollection} 获取了 ${result.length} 条番茄钟数据`);
+      return result;
+    } else {
+      console.warn('所有尝试的集合都没有返回番茄钟数据');
+      return [];
+    }
   } catch (error) {
-    console.error('查询番茄钟记录时发生错误:', error);
-    return Promise.reject(error);
+    console.error('查询番茄钟时发生异常:', error);
+    return [];
   }
 };
 
@@ -282,7 +354,11 @@ export const getPomodoroById = async (id) => {
     }
 
     const db = cloud.database();
-    const pomodoroCollection = db.collection('pomodoro');
+    // 使用找到的有效集合名称
+    const collectionName = successfulCollections.pomodoro || 'pomodoro';
+    console.log(`获取番茄钟记录，使用集合: ${collectionName}`);
+
+    const pomodoroCollection = db.collection(collectionName);
 
     return pomodoroCollection.doc(id).get()
       .then(res => {
@@ -315,7 +391,11 @@ export const addPomodoro = async (pomodoro) => {
     }
 
     const db = cloud.database();
-    const pomodoroCollection = db.collection('pomodoro');
+    // 使用找到的有效集合名称
+    const collectionName = successfulCollections.pomodoro || 'pomodoro';
+    console.log(`添加番茄钟记录，使用集合: ${collectionName}`);
+
+    const pomodoroCollection = db.collection(collectionName);
 
     // 补充必要字段
     const pomodoroData = {
@@ -354,7 +434,11 @@ export const updatePomodoro = async (id, data) => {
     }
 
     const db = cloud.database();
-    const pomodoroCollection = db.collection('pomodoro');
+    // 使用找到的有效集合名称
+    const collectionName = successfulCollections.pomodoro || 'pomodoro';
+    console.log(`更新番茄钟记录，使用集合: ${collectionName}`);
+
+    const pomodoroCollection = db.collection(collectionName);
 
     return pomodoroCollection.doc(id).update({
       data: data
@@ -386,7 +470,11 @@ export const deletePomodoro = async (id) => {
     }
 
     const db = cloud.database();
-    const pomodoroCollection = db.collection('pomodoro');
+    // 使用找到的有效集合名称
+    const collectionName = successfulCollections.pomodoro || 'pomodoro';
+    console.log(`删除番茄钟记录，使用集合: ${collectionName}`);
+
+    const pomodoroCollection = db.collection(collectionName);
 
     return pomodoroCollection.doc(id).remove()
       .then(res => {
@@ -425,42 +513,96 @@ export const getPomodorosByTodoId = (todoId) => {
  */
 export const getAims = async (options = {}) => {
   try {
+    console.log('开始获取目标数据');
     const cloud = await initCloud();
     if (!cloud) {
+      console.error('云环境未初始化');
       return Promise.reject(new Error('云环境未初始化'));
     }
 
+    console.log('云环境初始化成功，准备查询目标数据');
     const db = cloud.database();
-    const aimCollection = db.collection('aim');
 
-    let query = aimCollection;
+    // 如果之前已经找到了有效的集合名称，直接使用
+    if (successfulCollections.aim) {
+      console.log(`使用已知有效的目标集合: ${successfulCollections.aim}`);
+      try {
+        const aimCollection = db.collection(successfulCollections.aim);
+        let query = aimCollection;
 
-    // 添加查询条件
-    if (options.where) {
-      query = query.where(options.where);
+        // 添加查询条件
+        if (options.where) query = query.where(options.where);
+        if (options.skip) query = query.skip(options.skip);
+        if (options.limit) query = query.limit(options.limit);
+
+        const result = await query.get();
+        console.log(`从集合 ${successfulCollections.aim} 获取目标数据成功:`, result);
+        return result.data || [];
+      } catch (error) {
+        console.error(`从已知集合 ${successfulCollections.aim} 获取数据失败，将尝试其他集合:`, error);
+        // 重置集合名称，将尝试其他集合
+        successfulCollections.aim = null;
+      }
     }
 
-    // 分页
-    if (options.skip) {
-      query = query.skip(options.skip);
+    // 尝试不同的集合名称
+    // 在微信云开发中，集合名称可能是大小写敏感的
+    const possibleCollectionNames = ['aim', 'Aim', 'AIM', 'aims', 'Aims', 'AIMS', 'aimList', 'AimList', 'goal', 'goals', 'Goals'];
+
+    // 尝试从每个可能的集合中获取数据
+    let result = [];
+    let successCollection = '';
+
+    for (const collectionName of possibleCollectionNames) {
+      try {
+        console.log(`尝试从集合 ${collectionName} 获取数据`);
+        const aimCollection = db.collection(collectionName);
+
+        let query = aimCollection;
+
+        // 添加查询条件
+        if (options.where) {
+          query = query.where(options.where);
+        }
+
+        // 分页
+        if (options.skip) {
+          query = query.skip(options.skip);
+        }
+
+        if (options.limit) {
+          query = query.limit(options.limit);
+        }
+
+        // 尝试获取一条记录以验证集合是否存在且可访问
+        const testResult = await query.limit(1).get();
+        console.log(`集合 ${collectionName} 测试结果:`, testResult);
+
+        if (testResult && testResult.data && testResult.data.length > 0) {
+          // 找到有效集合，执行完整查询
+          const fullResult = await query.get();
+          result = fullResult.data || [];
+          successCollection = collectionName;
+          // 存储成功的集合名称以供后续使用
+          successfulCollections.aim = collectionName;
+          console.log(`成功从集合 ${collectionName} 获取目标数据:`, result);
+          break;
+        }
+      } catch (collectionError) {
+        console.warn(`从集合 ${collectionName} 获取数据失败:`, collectionError);
+      }
     }
 
-    if (options.limit) {
-      query = query.limit(options.limit);
+    if (result.length > 0) {
+      console.log(`最终从集合 ${successCollection} 获取了 ${result.length} 条目标数据`);
+      return result;
+    } else {
+      console.warn('所有尝试的集合都没有返回目标数据');
+      return [];
     }
-
-    // 执行查询
-    return query.get()
-      .then(res => {
-        return res.data;
-      })
-      .catch(err => {
-        console.error('获取目标失败:', err);
-        throw err;
-      });
   } catch (error) {
-    console.error('查询目标时发生错误:', error);
-    return Promise.reject(error);
+    console.error('查询目标时发生异常:', error);
+    return [];
   }
 };
 
@@ -477,7 +619,11 @@ export const getAimById = async (id) => {
     }
 
     const db = cloud.database();
-    const aimCollection = db.collection('aim');
+    // 使用找到的有效集合名称
+    const collectionName = successfulCollections.aim || 'aim';
+    console.log(`获取目标记录，使用集合: ${collectionName}`);
+
+    const aimCollection = db.collection(collectionName);
 
     return aimCollection.doc(id).get()
       .then(res => {
@@ -510,7 +656,11 @@ export const addAim = async (aim) => {
     }
 
     const db = cloud.database();
-    const aimCollection = db.collection('aim');
+    // 使用找到的有效集合名称
+    const collectionName = successfulCollections.aim || 'aim';
+    console.log(`添加目标，使用集合: ${collectionName}`);
+
+    const aimCollection = db.collection(collectionName);
 
     // 添加创建时间和初始进度
     const aimData = {
@@ -551,7 +701,11 @@ export const updateAim = async (id, data) => {
     }
 
     const db = cloud.database();
-    const aimCollection = db.collection('aim');
+    // 使用找到的有效集合名称
+    const collectionName = successfulCollections.aim || 'aim';
+    console.log(`更新目标，使用集合: ${collectionName}`);
+
+    const aimCollection = db.collection(collectionName);
 
     return aimCollection.doc(id).update({
       data: data
@@ -583,7 +737,11 @@ export const deleteAim = async (id) => {
     }
 
     const db = cloud.database();
-    const aimCollection = db.collection('aim');
+    // 使用找到的有效集合名称
+    const collectionName = successfulCollections.aim || 'aim';
+    console.log(`删除目标，使用集合: ${collectionName}`);
+
+    const aimCollection = db.collection(collectionName);
 
     return aimCollection.doc(id).remove()
       .then(res => {
@@ -695,5 +853,184 @@ export const removeTodoFromAim = async (aimId, todoId) => {
   } catch (error) {
     console.error('移除关联待办事项时发生错误:', error);
     return Promise.reject(error);
+  }
+};
+
+// =========== 用户(users)相关操作 ===========
+
+/**
+ * 获取用户列表
+ * @param {Object} options 查询选项 {limit, skip, where}
+ * @returns {Promise} 返回用户列表
+ */
+export const getUsers = async (options = {}) => {
+  try {
+    console.log('开始获取用户数据');
+    const cloud = await initCloud();
+    if (!cloud) {
+      console.error('云环境未初始化');
+      return Promise.reject(new Error('云环境未初始化'));
+    }
+
+    console.log('云环境初始化成功，准备查询用户数据');
+    const db = cloud.database();
+
+    // 如果之前已经找到了有效的集合名称，直接使用
+    if (successfulCollections.users) {
+      console.log(`使用已知有效的用户集合: ${successfulCollections.users}`);
+      try {
+        const userCollection = db.collection(successfulCollections.users);
+        let query = userCollection;
+
+        // 添加查询条件
+        if (options.where) query = query.where(options.where);
+        if (options.skip) query = query.skip(options.skip);
+        if (options.limit) query = query.limit(options.limit);
+
+        const result = await query.get();
+        console.log(`从集合 ${successfulCollections.users} 获取用户数据成功:`, result);
+        return result.data || [];
+      } catch (error) {
+        console.error(`从已知集合 ${successfulCollections.users} 获取数据失败，将尝试其他集合:`, error);
+        // 重置集合名称，将尝试其他集合
+        successfulCollections.users = null;
+      }
+    }
+
+    // 尝试不同的集合名称
+    // 在微信云开发中，集合名称可能是大小写敏感的
+    const possibleCollectionNames = ['users', 'Users', 'USERS', 'user', 'User', 'USER', 'userProfile', 'UserProfile', 'wxuser'];
+
+    // 尝试从每个可能的集合中获取数据
+    let result = [];
+    let successCollection = '';
+
+    for (const collectionName of possibleCollectionNames) {
+      try {
+        console.log(`尝试从集合 ${collectionName} 获取数据`);
+        const userCollection = db.collection(collectionName);
+
+        let query = userCollection;
+
+        // 添加查询条件
+        if (options.where) {
+          query = query.where(options.where);
+        }
+
+        // 分页
+        if (options.skip) {
+          query = query.skip(options.skip);
+        }
+
+        if (options.limit) {
+          query = query.limit(options.limit);
+        }
+
+        // 尝试获取一条记录以验证集合是否存在且可访问
+        const testResult = await query.limit(1).get();
+        console.log(`集合 ${collectionName} 测试结果:`, testResult);
+
+        if (testResult && testResult.data && testResult.data.length > 0) {
+          // 找到有效集合，执行完整查询
+          const fullResult = await query.get();
+          result = fullResult.data || [];
+          successCollection = collectionName;
+          // 存储成功的集合名称以供后续使用
+          successfulCollections.users = collectionName;
+          console.log(`成功从集合 ${collectionName} 获取用户数据:`, result);
+          break;
+        }
+      } catch (collectionError) {
+        console.warn(`从集合 ${collectionName} 获取数据失败:`, collectionError);
+      }
+    }
+
+    if (result.length > 0) {
+      console.log(`最终从集合 ${successCollection} 获取了 ${result.length} 条用户数据`);
+      return result;
+    } else {
+      // 在用户集合不存在的情况下，尝试从todos和pomodoro集合中提取用户信息
+      console.log('尝试从todos和pomodoro集合中提取用户信息');
+      try {
+        // 确保我们能获取到这些集合的数据
+        const todos = await getTodos().catch(() => []);
+        const pomodoros = await getPomodoros().catch(() => []);
+
+        // 提取唯一的_openid并构建用户对象
+        const userMap = new Map();
+
+        // 从todos中提取
+        todos.forEach(todo => {
+          if (todo._openid && !userMap.has(todo._openid)) {
+            userMap.set(todo._openid, {
+              _openid: todo._openid,
+              nickname: todo.userNickname || '未知用户',
+              avatarUrl: '',
+              taskCount: 0,
+              completedCount: 0,
+              pomodoroCount: 0,
+              lastActive: todo.updateTime || todo.createTime || new Date().toString(),
+              createTime: todo.createTime || new Date().toString()
+            });
+          }
+
+          // 更新任务计数
+          if (todo._openid && userMap.has(todo._openid)) {
+            const user = userMap.get(todo._openid);
+            user.taskCount++;
+            if (todo.completed) {
+              user.completedCount++;
+            }
+
+            // 更新最后活跃时间
+            const updateTime = new Date(todo.updateTime || todo.createTime);
+            const lastActive = new Date(user.lastActive);
+            if (updateTime > lastActive) {
+              user.lastActive = updateTime.toString();
+            }
+          }
+        });
+
+        // 从pomodoros中提取
+        pomodoros.forEach(pomo => {
+          if (pomo._openid && !userMap.has(pomo._openid)) {
+            userMap.set(pomo._openid, {
+              _openid: pomo._openid,
+              nickname: pomo.userNickname || '未知用户',
+              avatarUrl: '',
+              taskCount: 0,
+              completedCount: 0,
+              pomodoroCount: 0,
+              lastActive: pomo.endtime || pomo.starttime || new Date().toString(),
+              createTime: pomo.starttime || new Date().toString()
+            });
+          }
+
+          // 更新番茄钟计数
+          if (pomo._openid && userMap.has(pomo._openid)) {
+            const user = userMap.get(pomo._openid);
+            user.pomodoroCount++;
+
+            // 更新最后活跃时间
+            const endTime = new Date(pomo.endtime || pomo.starttime);
+            const lastActive = new Date(user.lastActive);
+            if (endTime > lastActive) {
+              user.lastActive = endTime.toString();
+            }
+          }
+        });
+
+        // 转换为数组
+        result = Array.from(userMap.values());
+        console.log('从todos和pomodoro集合中提取了用户信息:', result.length);
+        return result;
+      } catch (extractError) {
+        console.error('从其他集合提取用户信息失败:', extractError);
+        return [];
+      }
+    }
+  } catch (error) {
+    console.error('查询用户时发生异常:', error);
+    return [];
   }
 }; 

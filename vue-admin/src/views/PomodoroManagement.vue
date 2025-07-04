@@ -1,39 +1,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { getPomodoros, deletePomodoro } from '../services/cloudDbService'
 
-// 模拟番茄钟数据
-const pomodoros = ref([
-  {
-    _id: '8524406c686331450439691954bc4bb',
-    _openid: 'o2ch25FQ2FpXs1fYC3JyOWo-hUKo',
-    endtime: 'Tue Jul 01 2025 08:53:28 GMT+0800 (中国标准时间)',
-    pomodoro_id: 1,
-    starttime: 'Tue Jul 01 2025 08:52:59 GMT+0800 (中国标准时间)',
-    todo_id: '82bba80968633a930435705a3d6207f1',
-    todo_title: '1',
-    userNickname: '用户1'
-  },
-  {
-    _id: 'pomo123456789',
-    _openid: 'user123456789',
-    endtime: 'Tue Jun 30 2025 14:25:00 GMT+0800 (中国标准时间)',
-    pomodoro_id: 2,
-    starttime: 'Tue Jun 30 2025 14:00:00 GMT+0800 (中国标准时间)',
-    todo_id: 'todo123456789',
-    todo_title: '项目报告',
-    userNickname: '用户2'
-  },
-  {
-    _id: 'pomo987654321',
-    _openid: 'user987654321',
-    endtime: 'Tue Jun 29 2025 10:30:00 GMT+0800 (中国标准时间)',
-    pomodoro_id: 3,
-    starttime: 'Tue Jun 29 2025 10:05:00 GMT+0800 (中国标准时间)',
-    todo_id: 'todo987654321',
-    todo_title: '会议准备',
-    userNickname: '用户3'
-  }
-])
+// 番茄钟数据状态
+const pomodoros = ref([])
+const isLoading = ref(true)
+const errorMessage = ref('')
 
 // 搜索关键词
 const searchKeyword = ref('')
@@ -41,12 +13,11 @@ const dateRange = ref({
   start: '',
   end: ''
 })
-const isLoading = ref(false)
 const selectedUser = ref('all')
 
-// 用户列表，实际应用中可能从API获取
+// 用户列表，从实际数据中获取
 const userOptions = computed(() => {
-  const uniqueUsers = [...new Set(pomodoros.value.map(p => p.userNickname))];
+  const uniqueUsers = [...new Set(pomodoros.value.map(p => p.userNickname || p._openid || '未知用户'))];
   return [
     { value: 'all', label: '全部用户' },
     ...uniqueUsers.map(name => ({ value: name, label: name }))
@@ -56,31 +27,34 @@ const userOptions = computed(() => {
 // 筛选后的番茄钟列表
 const filteredPomodoros = computed(() => {
   let result = pomodoros.value
-  
+
   // 关键词筛选
   if (searchKeyword.value) {
-    result = result.filter(pomo => 
-      pomo.todo_title.toLowerCase().includes(searchKeyword.value.toLowerCase()) || 
-      pomo.userNickname.toLowerCase().includes(searchKeyword.value.toLowerCase())
+    result = result.filter(pomo =>
+      (pomo.todo_title && pomo.todo_title.toLowerCase().includes(searchKeyword.value.toLowerCase())) ||
+      (pomo.userNickname && pomo.userNickname.toLowerCase().includes(searchKeyword.value.toLowerCase())) ||
+      (pomo._openid && pomo._openid.toLowerCase().includes(searchKeyword.value.toLowerCase()))
     )
   }
-  
+
   // 日期范围筛选
   if (dateRange.value.start && dateRange.value.end) {
     const startDate = new Date(dateRange.value.start)
     const endDate = new Date(dateRange.value.end)
-    
+
     result = result.filter(pomo => {
       const pomoDate = new Date(pomo.starttime)
       return pomoDate >= startDate && pomoDate <= endDate
     })
   }
-  
+
   // 用户筛选
   if (selectedUser.value !== 'all') {
-    result = result.filter(pomo => pomo.userNickname === selectedUser.value)
+    result = result.filter(pomo =>
+      pomo.userNickname === selectedUser.value || pomo._openid === selectedUser.value
+    )
   }
-  
+
   return result
 })
 
@@ -90,6 +64,34 @@ const currentPomodoro = ref(null)
 // 查看番茄钟详情
 const viewPomodoroDetail = (pomo) => {
   currentPomodoro.value = pomo
+}
+
+// 加载番茄钟数据
+const loadPomodoros = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    console.log('开始获取番茄钟数据...')
+    const data = await getPomodoros()
+    console.log('获取番茄钟数据成功:', data?.length || 0)
+
+    // 确保数据是数组
+    pomodoros.value = Array.isArray(data) ? data : []
+
+    // 补充可能缺失的字段
+    pomodoros.value = pomodoros.value.map(pomo => ({
+      ...pomo,
+      todo_title: pomo.todo_title || '未知任务',
+      userNickname: pomo.userNickname || pomo._openid || '未知用户',
+    }))
+  } catch (error) {
+    console.error('获取番茄钟数据失败:', error)
+    errorMessage.value = `获取数据失败: ${error.message || '未知错误'}`
+    pomodoros.value = []
+  } finally {
+    isLoading.value = false
+  }
 }
 
 // 搜索番茄钟
@@ -109,32 +111,69 @@ const clearFilters = () => {
   searchPomodoros()
 }
 
+// 刷新数据
+const refreshData = () => {
+  loadPomodoros()
+}
+
+// 删除番茄钟记录
+const handleDeletePomodoro = async (pomo) => {
+  if (!confirm(`确定要删除该番茄钟记录吗？\n任务: ${pomo.todo_title}\n开始时间: ${formatDate(pomo.starttime)}`)) {
+    return
+  }
+
+  try {
+    isLoading.value = true
+    await deletePomodoro(pomo._id)
+    alert('删除成功')
+    currentPomodoro.value = null
+    await loadPomodoros()
+  } catch (error) {
+    console.error('删除番茄钟记录失败:', error)
+    alert(`删除失败: ${error.message || '未知错误'}`)
+  } finally {
+    isLoading.value = false
+  }
+}
+
 // 格式化日期
 const formatDate = (dateString) => {
-  const date = new Date(dateString)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  if (!dateString) return '未知时间'
+
+  try {
+    const date = new Date(dateString)
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  } catch (e) {
+    return dateString
+  }
 }
 
 // 计算持续时间（分钟）
 const calculateDuration = (startTime, endTime) => {
-  const start = new Date(startTime)
-  const end = new Date(endTime)
-  const durationMs = end - start
-  return Math.round(durationMs / 60000) // 转换为分钟
+  if (!startTime || !endTime) return 0
+
+  try {
+    const start = new Date(startTime)
+    const end = new Date(endTime)
+    const durationMs = end - start
+    return Math.round(durationMs / 60000) // 转换为分钟
+  } catch (e) {
+    return 0
+  }
 }
 
 // 统计数据
 const stats = computed(() => {
   const totalPomodoros = filteredPomodoros.value.length
-  const totalDuration = filteredPomodoros.value.reduce((sum, pomo) => 
+  const totalDuration = filteredPomodoros.value.reduce((sum, pomo) =>
     sum + calculateDuration(pomo.starttime, pomo.endtime), 0)
-  
+
   const avgDuration = totalPomodoros ? Math.round(totalDuration / totalPomodoros) : 0
-  
-  const durations = filteredPomodoros.value.map(pomo => 
+
+  const durations = filteredPomodoros.value.map(pomo =>
     calculateDuration(pomo.starttime, pomo.endtime))
   const maxDuration = durations.length ? Math.max(...durations) : 0
-  
+
   return {
     totalPomodoros,
     totalDuration,
@@ -145,7 +184,7 @@ const stats = computed(() => {
 
 // 初始化数据
 onMounted(() => {
-  // 在真实环境中可以从API获取数据
+  loadPomodoros()
 })
 </script>
 
@@ -153,26 +192,31 @@ onMounted(() => {
   <div class="pomodoro-management">
     <div class="page-header">
       <h1>番茄钟管理</h1>
-      <button class="refresh-btn">刷新</button>
+      <button class="refresh-btn" @click="refreshData">刷新</button>
     </div>
-    
-    <div class="content-panel">
+
+    <div v-if="isLoading && pomodoros.length === 0" class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>加载数据中，请稍候...</p>
+    </div>
+
+    <div v-else-if="errorMessage && pomodoros.length === 0" class="error-container">
+      <p class="error-message">{{ errorMessage }}</p>
+      <button @click="loadPomodoros" class="retry-btn">重试</button>
+    </div>
+
+    <div v-else class="content-panel">
       <div class="search-panel">
         <div class="search-form">
           <div class="search-row">
             <div class="search-box">
-              <input 
-                type="text" 
-                v-model="searchKeyword" 
-                @keyup.enter="searchPomodoros"
-                placeholder="搜索任务或用户" 
-              />
+              <input type="text" v-model="searchKeyword" @keyup.enter="searchPomodoros" placeholder="搜索任务或用户" />
               <button class="search-btn" @click="searchPomodoros">
                 <span v-if="!isLoading">搜索</span>
                 <span v-else>搜索中...</span>
               </button>
             </div>
-            
+
             <div class="user-filter">
               <label>用户:</label>
               <select v-model="selectedUser" @change="searchPomodoros">
@@ -182,53 +226,45 @@ onMounted(() => {
               </select>
             </div>
           </div>
-          
+
           <div class="date-filter-row">
             <div class="date-filter">
               <label>开始日期:</label>
-              <input 
-                type="date" 
-                v-model="dateRange.start" 
-                @change="searchPomodoros" 
-              />
+              <input type="date" v-model="dateRange.start" @change="searchPomodoros" />
             </div>
-            
+
             <div class="date-filter">
               <label>结束日期:</label>
-              <input 
-                type="date" 
-                v-model="dateRange.end" 
-                @change="searchPomodoros" 
-              />
+              <input type="date" v-model="dateRange.end" @change="searchPomodoros" />
             </div>
-            
+
             <button class="clear-btn" @click="clearFilters">重置筛选</button>
           </div>
         </div>
       </div>
-      
+
       <div class="stats-panel">
         <div class="stat-card">
           <div class="stat-value">{{ stats.totalPomodoros }}</div>
           <div class="stat-label">番茄钟数</div>
         </div>
-        
+
         <div class="stat-card">
           <div class="stat-value">{{ stats.totalDuration }}分钟</div>
           <div class="stat-label">总专注时长</div>
         </div>
-        
+
         <div class="stat-card">
           <div class="stat-value">{{ stats.avgDuration }}分钟</div>
           <div class="stat-label">平均时长</div>
         </div>
-        
+
         <div class="stat-card">
           <div class="stat-value">{{ stats.maxDuration }}分钟</div>
           <div class="stat-label">最长时长</div>
         </div>
       </div>
-      
+
       <div class="result-panel">
         <div class="table-wrapper">
           <table class="data-table">
@@ -267,13 +303,13 @@ onMounted(() => {
             </tbody>
           </table>
         </div>
-        
+
         <div class="pomodoro-detail" v-if="currentPomodoro">
           <div class="detail-header">
             <h2>番茄钟详情</h2>
             <button class="close-btn" @click="currentPomodoro = null">×</button>
           </div>
-          
+
           <div class="detail-body">
             <div class="detail-section">
               <div class="section-title">基本信息</div>
@@ -283,10 +319,10 @@ onMounted(() => {
               </div>
               <div class="detail-item">
                 <div class="detail-label">番茄钟编号:</div>
-                <div class="detail-value">{{ currentPomodoro.pomodoro_id }}</div>
+                <div class="detail-value">{{ currentPomodoro.pomodoro_id || '未设置' }}</div>
               </div>
             </div>
-            
+
             <div class="detail-section">
               <div class="section-title">时间信息</div>
               <div class="detail-item">
@@ -304,29 +340,29 @@ onMounted(() => {
                 </div>
               </div>
             </div>
-            
+
             <div class="detail-section">
               <div class="section-title">关联信息</div>
               <div class="detail-item">
                 <div class="detail-label">关联任务:</div>
-                <div class="detail-value">{{ currentPomodoro.todo_title }}</div>
+                <div class="detail-value">{{ currentPomodoro.todo_title || '未知任务' }}</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">任务ID:</div>
-                <div class="detail-value">{{ currentPomodoro.todo_id }}</div>
+                <div class="detail-value">{{ currentPomodoro.todo_id || '未关联' }}</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">用户:</div>
-                <div class="detail-value">{{ currentPomodoro.userNickname }}</div>
+                <div class="detail-value">{{ currentPomodoro.userNickname || '未知用户' }}</div>
               </div>
               <div class="detail-item">
                 <div class="detail-label">用户ID:</div>
-                <div class="detail-value">{{ currentPomodoro._openid }}</div>
+                <div class="detail-value">{{ currentPomodoro._openid || '未知' }}</div>
               </div>
             </div>
-            
+
             <div class="detail-actions">
-              <button class="detail-btn danger">删除记录</button>
+              <button class="detail-btn danger" @click="handleDeletePomodoro(currentPomodoro)">删除记录</button>
             </div>
           </div>
         </div>
@@ -368,6 +404,54 @@ onMounted(() => {
   background-color: rgba(67, 97, 238, 0.1);
 }
 
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid transparent;
+  border-top-color: var(--primary-color);
+  border-right-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.8s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-container {
+  text-align: center;
+  margin: 50px 0;
+}
+
+.error-message {
+  color: #e74c3c;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.retry-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retry-btn:hover {
+  background-color: #2980b9;
+}
+
 .content-panel {
   background-color: var(--card-color);
   border-radius: var(--border-radius);
@@ -387,7 +471,8 @@ onMounted(() => {
   gap: 16px;
 }
 
-.search-row, .date-filter-row {
+.search-row,
+.date-filter-row {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
@@ -429,13 +514,15 @@ onMounted(() => {
   background-color: var(--primary-dark);
 }
 
-.user-filter, .date-filter {
+.user-filter,
+.date-filter {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.user-filter label, .date-filter label {
+.user-filter label,
+.date-filter label {
   font-size: 14px;
   color: var(--text-light);
   white-space: nowrap;
@@ -665,11 +752,11 @@ onMounted(() => {
   .stats-panel {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .result-panel {
     flex-direction: column;
   }
-  
+
   .pomodoro-detail {
     width: 100%;
     border-left: none;
@@ -678,27 +765,30 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .search-row, .date-filter-row {
+
+  .search-row,
+  .date-filter-row {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .search-box {
     max-width: 100%;
   }
-  
-  .user-filter, .date-filter {
+
+  .user-filter,
+  .date-filter {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .clear-btn {
     margin-left: 0;
     width: 100%;
   }
-  
+
   .stats-panel {
     grid-template-columns: 1fr;
   }
 }
-</style> 
+</style>
