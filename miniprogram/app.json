@@ -4,6 +4,8 @@
     "pages/aimList/index",
     "pages/statistics/index",
     "pages/userCenter/index",
+    "pages/accountSettings/index",
+    "pages/aboutApp/index",
     "pages/tomatoTimer/index"
   ],
   "window": {
