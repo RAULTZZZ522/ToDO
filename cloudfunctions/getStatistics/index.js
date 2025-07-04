@@ -21,7 +21,7 @@ exports.main = async (event, context) => {
     // 并行查询各个集合的数据
     const [todos, aims, pomodoros] = await Promise.all([
       db.collection('todos').where(condition).get(),
-      db.collection('aim').where(condition).get(),
+      db.collection('aims').where(condition).get(),
       db.collection('pomodoro').where(condition).get()
     ])
 

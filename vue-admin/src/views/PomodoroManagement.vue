@@ -406,27 +406,23 @@ onMounted(() => {
 
 .loading-container {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 300px;
+  padding: 60px 0;
 }
 
 .loading-spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 48px;
+  height: 48px;
+  border: 3px solid transparent;
+  border-top-color: var(--primary-color);
+  border-right-color: var(--primary-color);
   border-radius: 50%;
-  border-top: 4px solid #3498db;
-  width: 50px;
-  height: 50px;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s ease-in-out infinite;
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
+  to {
     transform: rotate(360deg);
   }
 }

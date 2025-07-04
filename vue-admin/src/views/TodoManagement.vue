@@ -111,7 +111,16 @@ const filteredTodos = computed(() => {
 
   // 重要性筛选
   if (importanceFilter.value > 0) {
-    result = result.filter(todo => todo.importance === importanceFilter.value)
+    result = result.filter(todo => {
+      if (importanceFilter.value === 1) {
+        return todo.importance >= 1 && todo.importance <= 2
+      } else if (importanceFilter.value === 2) {
+        return todo.importance >= 3 && todo.importance <= 4
+      } else if (importanceFilter.value === 3) {
+        return todo.importance === 5
+      }
+      return true
+    })
   }
 
   // 用户筛选
@@ -247,18 +256,22 @@ const handleDeleteTodo = (todoId) => {
     });
 };
 
-// 重要性映射
+// 重要性映射 (1-2低，3-4中，5高)
 const importanceText = {
   1: '低',
-  2: '中',
-  3: '高'
+  2: '低',
+  3: '中',
+  4: '中',
+  5: '高'
 }
 
-// 重要性对应的颜色
-const importanceColor = {
-  1: 'var(--text-light)',
-  2: 'var(--warning-color)',
-  3: 'var(--danger-color)'
+// 重要性对应的class
+const importanceClass = {
+  1: 'low',
+  2: 'low',
+  3: 'medium',
+  4: 'medium',
+  5: 'high'
 }
 
 // 切换高级搜索
@@ -455,7 +468,7 @@ const getRandomColor = (username) => {
 <template>
   <div class="todo-management">
     <div class="page-header">
-      <h1>任务管理</h1>
+      <h1>日程管理</h1>
       <div class="header-actions">
         <button class="realtime-btn" :class="{ active: isRealtime }" @click="toggleRealtime" :disabled="isLoading">
           {{ isRealtime ? '实时监听已开启' : '实时监听已关闭' }}
@@ -652,11 +665,18 @@ const getRandomColor = (username) => {
           </div>
 
           <div class="form-group">
+            <label>分类:</label>
+            <input type="text" v-model="newTodo.category" placeholder="任务分类" />
+          </div>
+
+          <div class="form-group">
             <label>重要性:</label>
             <select v-model="newTodo.importance">
-              <option :value="1">低</option>
-              <option :value="2">中</option>
-              <option :value="3">高</option>
+              <option :value="1">1 (低)</option>
+              <option :value="2">2 (低)</option>
+              <option :value="3">3 (中)</option>
+              <option :value="4">4 (中)</option>
+              <option :value="5">5 (高)</option>
             </select>
           </div>
 
@@ -681,10 +701,11 @@ const getRandomColor = (username) => {
               <tr>
                 <th class="id-col">ID</th>
                 <th>标题</th>
+                <th>分类</th>
                 <th>状态</th>
                 <th>重要性</th>
                 <th>用户</th>
-                <th>用户ID</th>
+                <th class="user-id-col">用户ID</th>
                 <th>创建时间</th>
                 <th>操作</th>
               </tr>
@@ -693,6 +714,7 @@ const getRandomColor = (username) => {
               <tr v-for="todo in paginatedTodos" :key="todo._id" :class="{ 'completed-task': todo.completed }">
                 <td class="id-col">{{ todo._id.substring(0, 8) }}...</td>
                 <td class="title-col">{{ todo.title }}</td>
+                <td>{{ todo.category || '无' }}</td>
                 <td>
                   <span class="status-badge" :class="{ 'status-completed': todo.completed }"
                     @click="toggleTaskStatus(todo)">
@@ -700,12 +722,12 @@ const getRandomColor = (username) => {
                   </span>
                 </td>
                 <td>
-                  <span class="importance-badge" :style="{ backgroundColor: importanceColor[todo.importance] }">
+                  <span class="importance-badge" :class="importanceClass[todo.importance]">
                     {{ importanceText[todo.importance] }}
                   </span>
                 </td>
                 <td>{{ todo.userNickname }}</td>
-                <td>{{ todo._openid || '无' }}</td>
+                <td class="user-id-col">{{ todo._openid ? todo._openid.substring(0, 8) + '...' : '无' }}</td>
                 <td>{{ formatDate(todo.createTime) }}</td>
                 <td>
                   <div class="action-buttons">
@@ -757,7 +779,7 @@ const getRandomColor = (username) => {
                   <div class="donut-chart"
                     :style="{ backgroundImage: `conic-gradient(var(--success-color) 0% ${(todos.filter(t => t.completed).length / todos.length) * 100}%, #e0e0e0 ${(todos.filter(t => t.completed).length / todos.length) * 100}% 100%)` }">
                     <div class="donut-inner">{{Math.round((todos.filter(t => t.completed).length / todos.length) * 100)
-                      }}%</div>
+                    }}%</div>
                   </div>
                   <div class="donut-legend">
                     <div class="legend-item">
@@ -819,6 +841,11 @@ const getRandomColor = (username) => {
             </div>
 
             <div class="detail-row">
+              <span class="detail-label">分类:</span>
+              <span class="detail-value">{{ currentTodo.category || '无' }}</span>
+            </div>
+
+            <div class="detail-row">
               <span class="detail-label">描述:</span>
               <p class="detail-value description">{{ currentTodo.description || '无描述' }}</p>
             </div>
@@ -832,8 +859,7 @@ const getRandomColor = (username) => {
 
             <div class="detail-row">
               <span class="detail-label">重要性:</span>
-              <span class="importance-badge detail-value"
-                :style="{ backgroundColor: importanceColor[currentTodo.importance] }">
+              <span class="importance-badge detail-value" :class="importanceClass[currentTodo.importance]">
                 {{ importanceText[currentTodo.importance] }}
               </span>
             </div>
@@ -867,6 +893,11 @@ const getRandomColor = (username) => {
             </div>
 
             <div class="form-group">
+              <label>分类:</label>
+              <input type="text" v-model="editTodo.category" placeholder="任务分类" />
+            </div>
+
+            <div class="form-group">
               <label>状态:</label>
               <select v-model="editTodo.completed">
                 <option :value="false">未完成</option>
@@ -877,9 +908,11 @@ const getRandomColor = (username) => {
             <div class="form-group">
               <label>重要性:</label>
               <select v-model="editTodo.importance">
-                <option :value="1">低</option>
-                <option :value="2">中</option>
-                <option :value="3">高</option>
+                <option :value="1">1 (低)</option>
+                <option :value="2">2 (低)</option>
+                <option :value="3">3 (中)</option>
+                <option :value="4">4 (中)</option>
+                <option :value="5">5 (高)</option>
               </select>
             </div>
 
@@ -904,27 +937,23 @@ const getRandomColor = (username) => {
 <style scoped>
 .loading-container {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 200px;
+  padding: 60px 0;
 }
 
 .loading-spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 48px;
+  height: 48px;
+  border: 3px solid transparent;
+  border-top-color: var(--primary-color);
+  border-right-color: var(--primary-color);
   border-radius: 50%;
-  border-top: 4px solid #3498db;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s ease-in-out infinite;
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
+  to {
     transform: rotate(360deg);
   }
 }
@@ -1301,7 +1330,22 @@ const getRandomColor = (username) => {
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 12px;
-  color: white;
+  font-weight: 600;
+}
+
+.importance-badge.low {
+  background-color: rgba(141, 153, 174, 0.2);
+  color: var(--text-light);
+}
+
+.importance-badge.medium {
+  background-color: rgba(248, 150, 30, 0.15);
+  color: var(--warning-color);
+}
+
+.importance-badge.high {
+  background-color: rgba(249, 65, 68, 0.15);
+  color: var(--danger-color);
 }
 
 .empty-state {
@@ -1681,5 +1725,12 @@ const getRandomColor = (username) => {
     flex-direction: column;
     gap: 20px;
   }
+}
+
+.user-id-col {
+  max-width: 140px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 </style>

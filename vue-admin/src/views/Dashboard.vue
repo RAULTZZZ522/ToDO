@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
-import { getTodos, getAims, getPomodoros, callCloudFunction } from '../services/cloudDbService'
+import { getTodos, getAims, getPomodoros, getUsers, callCloudFunction } from '../services/cloudDbService'
 
 // 注册Chart.js组件
 Chart.register(...registerables)
@@ -35,7 +35,7 @@ const userActivityData = ref({
         fill: true
       },
       {
-        label: '完成任务用户',
+        label: '完成日程用户',
         data: [],
         backgroundColor: 'rgba(103, 194, 58, 0.2)',
         borderColor: 'rgba(103, 194, 58, 1)',
@@ -58,7 +58,7 @@ const userActivityData = ref({
         fill: true
       },
       {
-        label: '完成任务用户',
+        label: '完成日程用户',
         data: [],
         backgroundColor: 'rgba(103, 194, 58, 0.2)',
         borderColor: 'rgba(103, 194, 58, 1)',
@@ -99,6 +99,118 @@ const activePeriod = ref('weekly')
 // 初始化图表
 let userActivityChart = null
 let aimCategoryChart = null
+
+// 趋势数据
+const trend = reactive({
+  users: { up: true, percent: 0 },
+  aims: { up: true, percent: 0 },
+  todos: { up: true, percent: 0 },
+  pomodoros: { up: true, percent: 0 }
+});
+
+// 活跃用户计数
+const activeUserCounts = reactive({
+  today: 0,
+  weekly: 0,
+  monthly: 0
+});
+
+// 辅助函数：解析日期字段
+const parseDate = (item, fields) => {
+  for (const f of fields) {
+    if (item[f]) {
+      const d = new Date(item[f]);
+      if (!isNaN(d)) return d;
+    }
+  }
+  return null;
+};
+
+// 计算趋势
+const calculateTrend = (array, fields) => {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(todayStart.getDate() - 1);
+
+  let countToday = 0;
+  let countYesterday = 0;
+
+  array.forEach(item => {
+    const d = parseDate(item, fields);
+    if (!d) return;
+    if (d >= todayStart) {
+      countToday++;
+    } else if (d >= yesterdayStart && d < todayStart) {
+      countYesterday++;
+    }
+  });
+
+  const diff = countToday - countYesterday;
+  const up = diff >= 0;
+  const percent = countYesterday === 0 ? (diff > 0 ? 100 : 0) : Math.round(Math.abs(diff) / countYesterday * 100);
+  return { up, percent };
+};
+
+// 更新趋势
+const updateTrendStats = () => {
+  trend.users = calculateTrend(users.value, ['createTime', 'create_time', 'registrationTime', 'regTime', 'createdAt']);
+  trend.aims = calculateTrend(aims.value, ['createTime', 'create_time', 'createdAt']);
+  trend.todos = calculateTrend(todos.value, ['createTime', 'create_time', 'createdAt']);
+  trend.pomodoros = calculateTrend(pomodoros.value, ['starttime', 'startTime', 'start', 'start_at', 'createTime']);
+
+  // 计算活跃用户
+  computeActiveUsers();
+
+  // 准备用户活跃度折线图数据
+  prepareUserActivityData();
+
+  // 更新图表数据
+  prepareDailyStatsData();
+  prepareAimCategoryData();
+
+  // 图表初始化
+  createUserActivityChart();
+  createAimCategoryChart();
+};
+
+// 计算活跃用户
+const computeActiveUsers = () => {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(todayStart.getDate() - 6); // 包含今天，共7天
+
+  const monthStart = new Date(todayStart);
+  monthStart.setDate(todayStart.getDate() - 29); // 包含今天，共30天
+
+  const todaySet = new Set();
+  const weekSet = new Set();
+  const monthSet = new Set();
+
+  const processEvent = (openid, dateStr) => {
+    if (!openid || !dateStr) return;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return;
+
+    if (d >= todayStart) todaySet.add(openid);
+    if (d >= weekStart) weekSet.add(openid);
+    if (d >= monthStart) monthSet.add(openid);
+  };
+
+  todos.value.forEach(todo => {
+    processEvent(todo._openid, todo.updateTime || todo.createTime);
+  });
+
+  pomodoros.value.forEach(pomo => {
+    processEvent(pomo._openid, pomo.endtime || pomo.starttime);
+  });
+
+  activeUserCounts.today = todaySet.size;
+  activeUserCounts.weekly = weekSet.size;
+  activeUserCounts.monthly = monthSet.size;
+};
 
 // 创建用户活跃度图表
 const createUserActivityChart = () => {
@@ -211,6 +323,8 @@ const sortedAimsByDeadline = computed(() => {
 const todos = ref([])
 const aims = ref([])
 const pomodoros = ref([])
+const users = ref([])
+const userMap = ref({})
 
 // 准备七天的日期标签
 const prepareDailyStatsData = () => {
@@ -245,18 +359,46 @@ const prepareDailyStatsData = () => {
 
 // 准备用户活跃度数据
 const prepareUserActivityData = () => {
-  // 这里仅做示例，实际项目中应当从API获取真实数据
-  // 为简化，我们使用默认值
+  // 最近7天（日活）
   const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-  const weeklyActiveUsers = [0, 0, 0, 0, 0, 0, 0];
-  const weeklyCompletedTaskUsers = [0, 0, 0, 0, 0, 0, 0];
+  const weeklyActiveUsers = new Array(7).fill(0).map(() => new Set());
+  const weeklyCompletedTaskUsers = new Array(7).fill(0).map(() => new Set());
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const addToBucket = (openid, eventDate, bucketSets) => {
+    const diffDays = Math.floor((today - eventDate) / (1000 * 60 * 60 * 24));
+    const index = 6 - diffDays; // 0表示最左(周一前6天)，6表示今天
+    if (index >= 0 && index < 7) {
+      bucketSets[index].add(openid);
+    }
+  };
+
+  todos.value.forEach(todo => {
+    const d = new Date(todo.updateTime || todo.createTime);
+    if (isNaN(d)) return;
+    const openid = todo._openid;
+    addToBucket(openid, d, weeklyActiveUsers);
+    if (todo.completed) addToBucket(openid, d, weeklyCompletedTaskUsers);
+  });
+
+  pomodoros.value.forEach(pomo => {
+    const d = new Date(pomo.endtime || pomo.starttime);
+    if (isNaN(d)) return;
+    const openid = pomo._openid;
+    addToBucket(openid, d, weeklyActiveUsers);
+  });
+
+  const weeklyActiveCounts = weeklyActiveUsers.map(set => set.size);
+  const weeklyCompletedCounts = weeklyCompletedTaskUsers.map(set => set.size);
 
   userActivityData.value.weekly = {
     labels: weekDays,
     datasets: [
       {
         label: '日活跃用户',
-        data: weeklyActiveUsers,
+        data: weeklyActiveCounts,
         backgroundColor: 'rgba(67, 97, 238, 0.2)',
         borderColor: 'rgba(67, 97, 238, 1)',
         borderWidth: 2,
@@ -264,8 +406,8 @@ const prepareUserActivityData = () => {
         fill: true
       },
       {
-        label: '完成任务用户',
-        data: weeklyCompletedTaskUsers,
+        label: '完成日程用户',
+        data: weeklyCompletedCounts,
         backgroundColor: 'rgba(103, 194, 58, 0.2)',
         borderColor: 'rgba(103, 194, 58, 1)',
         borderWidth: 2,
@@ -275,24 +417,40 @@ const prepareUserActivityData = () => {
     ]
   };
 
+  // 最近4周（周活）
   const monthWeeks = ['1周', '2周', '3周', '4周'];
+  const monthlyActiveBuckets = new Array(4).fill(0).map(() => new Set());
+
+  const addToWeekBucket = (openid, d) => {
+    const diffDays = Math.floor((today - d) / (1000 * 60 * 60 * 24));
+    const index = Math.floor((29 - diffDays) / 7); // 0~3 对应4周
+    if (index >= 0 && index < 4) {
+      monthlyActiveBuckets[index].add(openid);
+    }
+  };
+
+  todos.value.forEach(todo => {
+    const d = new Date(todo.updateTime || todo.createTime);
+    if (isNaN(d)) return;
+    addToWeekBucket(todo._openid, d);
+  });
+
+  pomodoros.value.forEach(pomo => {
+    const d = new Date(pomo.endtime || pomo.starttime);
+    if (isNaN(d)) return;
+    addToWeekBucket(pomo._openid, d);
+  });
+
+  const monthlyActiveCounts = monthlyActiveBuckets.map(set => set.size);
+
   userActivityData.value.monthly = {
     labels: monthWeeks,
     datasets: [
       {
         label: '周活跃用户',
-        data: [0, 0, 0, 0],
+        data: monthlyActiveCounts,
         backgroundColor: 'rgba(67, 97, 238, 0.2)',
         borderColor: 'rgba(67, 97, 238, 1)',
-        borderWidth: 2,
-        tension: 0.4,
-        fill: true
-      },
-      {
-        label: '完成任务用户',
-        data: [0, 0, 0, 0],
-        backgroundColor: 'rgba(103, 194, 58, 0.2)',
-        borderColor: 'rgba(103, 194, 58, 1)',
         borderWidth: 2,
         tension: 0.4,
         fill: true
@@ -366,7 +524,7 @@ const loadData = async () => {
 
     // 并行获取所有数据
     console.log('开始并行获取todos, aims, pomodoros数据');
-    let todosData = [], aimsResult = [], pomodorosData = [];
+    let todosData = [], aimsResult = [], pomodorosData = [], usersResult = [];
 
     try {
       todosData = await getTodos().catch(err => {
@@ -398,6 +556,16 @@ const loadData = async () => {
       console.error('获取pomodoros数据出错:', pomodoroError);
     }
 
+    try {
+      usersResult = await getUsers().catch(err => {
+        console.error('获取users数据失败:', err);
+        return [];
+      });
+      console.log('成功获取users数据:', usersResult?.length || 0);
+    } catch (userError) {
+      console.error('获取users数据出错:', userError);
+    }
+
     console.log('数据获取结果:', {
       todos: todosData?.length || 0,
       aims: aimsResult?.length || 0,
@@ -409,13 +577,28 @@ const loadData = async () => {
     aims.value = Array.isArray(aimsResult) ? aimsResult : [];
     pomodoros.value = Array.isArray(pomodorosData) ? pomodorosData : [];
     aimsData.value = Array.isArray(aimsResult) ? aimsResult : [];
+    users.value = Array.isArray(usersResult) ? usersResult : [];
 
-    console.log('设置后的数据状态:', {
-      todos: todos.value.length,
-      aims: aims.value.length,
-      aimsData: aimsData.value.length,
-      pomodoros: pomodoros.value.length
-    });
+    // 构建用户映射
+    userMap.value = users.value.reduce((map, user) => {
+      const openid = user._openid || user.openid;
+      if (openid) map[openid] = user.nickname || user.nickName || user.name || '未知用户';
+      return map;
+    }, {});
+
+    // 在aims数据中附加用户昵称
+    if (Array.isArray(aimsResult)) {
+      aimsResult.forEach(aim => {
+        const nick = userMap.value[aim._openid] || '未知用户';
+        aim.userNickname = nick;
+      });
+    }
+
+    // 更新用户统计
+    totalUsers.value = users.value.length;
+
+    // 更新趋势
+    updateTrendStats();
 
     // 如果从云函数获取到了数据，使用云函数的统计结果
     if (statsData) {
@@ -511,8 +694,8 @@ onMounted(() => {
           <div class="stat-value">{{ isLoading ? '-' : totalUsers }}</div>
           <div class="stat-label">总用户数</div>
         </div>
-        <div class="stat-trend up">
-          <span>↑ 12%</span>
+        <div class="stat-trend" :class="trend.users.up ? 'up' : 'down'">
+          <span>{{ trend.users.up ? '↑' : '↓' }} {{ trend.users.percent }}%</span>
         </div>
       </div>
 
@@ -523,8 +706,8 @@ onMounted(() => {
           <div class="stat-label">总目标数</div>
           <div class="stat-sublabel">完成率: {{ isLoading ? '-' : Math.round(completedAims / totalAims * 100) }}%</div>
         </div>
-        <div class="stat-trend up">
-          <span>↑ 10%</span>
+        <div class="stat-trend" :class="trend.aims.up ? 'up' : 'down'">
+          <span>{{ trend.aims.up ? '↑' : '↓' }} {{ trend.aims.percent }}%</span>
         </div>
       </div>
 
@@ -532,12 +715,12 @@ onMounted(() => {
         <div class="stat-icon todos-icon">📝</div>
         <div class="stat-info">
           <div class="stat-value">{{ isLoading ? '-' : totalTodos }}</div>
-          <div class="stat-label">总任务数</div>
+          <div class="stat-label">总日程数</div>
           <div class="stat-sublabel">完成率: {{ isLoading ? '-' : (totalTodos ? Math.round(completedTodos / totalTodos *
             100) : 0) }}%</div>
         </div>
-        <div class="stat-trend up">
-          <span>↑ 8%</span>
+        <div class="stat-trend" :class="trend.todos.up ? 'up' : 'down'">
+          <span>{{ trend.todos.up ? '↑' : '↓' }} {{ trend.todos.percent }}%</span>
         </div>
       </div>
 
@@ -547,8 +730,8 @@ onMounted(() => {
           <div class="stat-value">{{ isLoading ? '-' : totalPomodoros }}</div>
           <div class="stat-label">总番茄钟数</div>
         </div>
-        <div class="stat-trend up">
-          <span>↑ 15%</span>
+        <div class="stat-trend" :class="trend.pomodoros.up ? 'up' : 'down'">
+          <span>{{ trend.pomodoros.up ? '↑' : '↓' }} {{ trend.pomodoros.percent }}%</span>
         </div>
       </div>
     </div>
@@ -571,8 +754,9 @@ onMounted(() => {
               <tr>
                 <th>目标名称</th>
                 <th>分类</th>
+                <th>用户</th>
                 <th>截止日期</th>
-                <th>任务完成</th>
+                <th>日程完成</th>
                 <th>进度</th>
               </tr>
             </thead>
@@ -583,6 +767,7 @@ onMounted(() => {
                   <div class="aim-description">{{ aim.description }}</div>
                 </td>
                 <td><span class="aim-category">{{ aim.category }}</span></td>
+                <td>{{ aim.userNickname }}</td>
                 <td>{{ new Date(aim.deadline).toLocaleDateString() }}</td>
                 <td>{{ aim.completedTodoCount }}/{{ aim.todoCount }}</td>
                 <td>
@@ -640,7 +825,7 @@ onMounted(() => {
               <div class="aim-stat-icon">⚡</div>
               <div class="aim-stat-info">
                 <div class="aim-stat-value">{{ Math.round(totalTodos / totalAimCount) }}</div>
-                <div class="aim-stat-label">平均任务数</div>
+                <div class="aim-stat-label">平均日程数</div>
               </div>
             </div>
           </div>
@@ -650,7 +835,7 @@ onMounted(() => {
       <!-- 第三行 -->
       <div class="chart-container">
         <div class="chart-header">
-          <h2>每日任务完成情况</h2>
+          <h2>每日日程完成情况</h2>
           <div class="chart-actions">
             <span class="chart-period active">周</span>
             <span class="chart-period">月</span>
@@ -663,8 +848,8 @@ onMounted(() => {
             <thead>
               <tr>
                 <th>日期</th>
-                <th>新建任务</th>
-                <th>完成任务</th>
+                <th>新建日程</th>
+                <th>完成日程</th>
                 <th>完成率</th>
                 <th>趋势</th>
               </tr>
@@ -706,15 +891,15 @@ onMounted(() => {
         <div class="chart-content">
           <div class="active-users-display">
             <div class="active-users-item">
-              <div class="active-users-value">42</div>
+              <div class="active-users-value">{{ activeUserCounts.today }}</div>
               <div class="active-users-label">今日活跃</div>
             </div>
             <div class="active-users-item">
-              <div class="active-users-value">128</div>
+              <div class="active-users-value">{{ activeUserCounts.weekly }}</div>
               <div class="active-users-label">本周活跃</div>
             </div>
             <div class="active-users-item">
-              <div class="active-users-value">324</div>
+              <div class="active-users-value">{{ activeUserCounts.monthly }}</div>
               <div class="active-users-label">本月活跃</div>
             </div>
           </div>
@@ -1148,27 +1333,23 @@ onMounted(() => {
 
 .loading-container {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 300px;
+  padding: 60px 0;
 }
 
 .loading-spinner {
-  border: 4px solid rgba(0, 0, 0, 0.1);
+  width: 48px;
+  height: 48px;
+  border: 3px solid transparent;
+  border-top-color: var(--primary-color);
+  border-right-color: var(--primary-color);
   border-radius: 50%;
-  border-top: 4px solid #3498db;
-  width: 50px;
-  height: 50px;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s ease-in-out infinite;
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
+  to {
     transform: rotate(360deg);
   }
 }
@@ -1246,5 +1427,11 @@ pre {
   .aim-stats-content {
     grid-template-columns: 1fr;
   }
+}
+
+.aims-table-container {
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
 }
 </style>
