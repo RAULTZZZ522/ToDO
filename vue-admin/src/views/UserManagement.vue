@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { getUsers } from '../services/cloudDbService'
 
 // 用户数据状态
@@ -146,6 +146,49 @@ const clearSearch = () => {
   searchUsers()
 }
 
+// 分页状态
+const pageSizeOptions = [10, 20, 50]
+const pageSize = ref(10)
+const currentPage = ref(1)
+
+// 计算总页数
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(filteredUsers.value.length / pageSize.value))
+})
+
+// 分页后的用户列表
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredUsers.value.slice(start, start + pageSize.value)
+})
+
+// 生成页码数组（最多显示 7 个）
+const pageNumbers = computed(() => {
+  const pages = []
+  const total = totalPages.value
+  let start = Math.max(1, currentPage.value - 3)
+  let end = Math.min(total, start + 6)
+  if (end - start < 6) {
+    start = Math.max(1, end - 6)
+  }
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
+
+// 监听筛选结果或每页数量变化，重置当前页
+watch([filteredUsers, pageSize], () => {
+  currentPage.value = 1
+})
+
+// 翻页函数
+const goToPage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
 // 初始化数据
 onMounted(() => {
   loadUsers()
@@ -210,7 +253,7 @@ onMounted(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="user in filteredUsers" :key="user._openid">
+              <tr v-for="user in paginatedUsers" :key="user._openid">
                 <td class="user-cell">
                   <div class="user-avatar">{{ user.nickname.charAt(0) }}</div>
                   <div class="user-info">
@@ -304,6 +347,27 @@ onMounted(() => {
             </div>
           </div>
         </div>
+
+        <!-- 分页导航 -->
+
+      </div>
+      <div class="pagination" v-if="filteredUsers.length > 0">
+        <button class="page-btn" @click="goToPage(1)" :disabled="currentPage === 1">首页</button>
+        <button class="page-btn" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1">上一页</button>
+
+        <button v-for="page in pageNumbers" :key="page" class="page-btn" :class="{ active: page === currentPage }"
+          @click="goToPage(page)">
+          {{ page }}
+        </button>
+
+        <button class="page-btn" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages">下一页</button>
+        <button class="page-btn" @click="goToPage(totalPages)" :disabled="currentPage === totalPages">末页</button>
+
+        <span class="page-info">{{ currentPage }} / {{ totalPages }} 页</span>
+
+        <select v-model="pageSize" class="page-size-select">
+          <option v-for="size in pageSizeOptions" :key="size" :value="size">{{ size }} / 页</option>
+        </select>
       </div>
     </div>
   </div>
@@ -764,5 +828,52 @@ onMounted(() => {
   .filter-box {
     flex-wrap: wrap;
   }
+}
+
+/* 分页样式 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  gap: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.page-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  background-color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.page-btn:hover:not(:disabled) {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.page-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  margin-left: 10px;
+  color: var(--text-light);
+}
+
+.page-size-select {
+  margin-left: 10px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
 }
 </style>
