@@ -4,7 +4,9 @@
     <view class="card-title">用户信息</view>
     <!-- 未登录状态 -->
     <view class="user-info" wx:if="{{!hasUserInfo}}">
-      <image class="avatar" src="../../images/icons/usercenter.png"></image>
+      <view class="default-avatar">
+        <text class="default-avatar-text">未登录</text>
+      </view>
       <text class="nickname">未登录</text>
       <button class="login-btn" plain="{{false}}" type="primary" bindtap="getUserProfile">微信登录</button>
     </view>
