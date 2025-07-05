@@ -113,10 +113,19 @@ Page({
     chartLoading: false,
     canvasWidth: 320,
     canvasHeight: 200,
-    tabIndex: 0
+    todayTodoCount: 0, // 新增字段：今日待办日程数
+    pieChartData: [
+      { label: '学习', value: 120, color: '#FF9F7F', highlight: false, percent: '33%' },  // 珊瑚色
+      { label: '工作', value: 90, color: '#FFD666', highlight: false, percent: '25%' },   // 黄色
+      { label: '生活', value: 60, color: '#FFAA85', highlight: false, percent: '16%' },   // 浅珊瑚色 
+      { label: '运动', value: 45, color: '#FF7F7F', highlight: false, percent: '12%' },   // 浅红色
+      { label: '爱好', value: 30, color: '#FFA07A', highlight: false, percent: '8%' },    // 浅鲑鱼色
+      { label: '其他', value: 20, color: '#FADEC9', highlight: false, percent: '6%' }     // 浅杏仁色
+    ],
   },
   
   onLoad: function() {
+    console.log('统计页面加载');
     // 设置当前日期
     const now = new Date();
     const year = now.getFullYear();
@@ -130,7 +139,8 @@ Page({
     wx.getSystemInfo({
       success: (res) => {
         this.setData({
-          canvasWidth: res.windowWidth - 40,
+          canvasWidth: res.windowWidth - 60,
+          canvasHeight: 300
         });
       }
     });
@@ -139,17 +149,55 @@ Page({
     this.loadStatisticsData();
   },
   
+  onReady: function() {
+    this.drawPieChart();
+  },
+  
   onShow: function() {
+    console.log('统计页面显示');
     // 每次页面显示时刷新数据
     this.loadStatisticsData();
+    
+    // 确保每次显示页面时重绘饼图
+    setTimeout(() => {
+      this.drawPieChart();
+    }, 500);
+  },
+  
+  // 添加页面滚动事件处理器
+  onPageScroll: function() {
+    // 页面滚动时可能需要重绘
+    if (this._scrollTimer) {
+      clearTimeout(this._scrollTimer);
+    }
+    this._scrollTimer = setTimeout(() => {
+      this.drawPieChart();
+    }, 200);
   },
   
   // 加载统计数据
   loadStatisticsData: async function() {
+    console.log('加载统计数据');
     this.setData({ loading: true });
-    
     try {
-      // 直接使用本地模拟数据
+      // 获取今日待办日程数
+      let todayTodoCount = 0;
+      try {
+        const res = await wx.cloud.callFunction({
+          name: 'todoModel',
+          data: {
+            $url: 'getTodayTodoCount'
+          }
+        });
+        if (res && res.result && res.result.code === 0) {
+          todayTodoCount = res.result.count;
+        }
+      } catch (err) {
+        console.warn('获取今日待办日程数失败', err);
+      }
+      // 设置今日待办日程数
+      this.setData({ todayTodoCount });
+      // 兼容原有本地模拟数据
       this.loadMockData();
     } catch (err) {
       console.error('加载统计数据失败', err);
@@ -164,6 +212,7 @@ Page({
 
   // 加载本地模拟数据
   loadMockData: function() {
+    console.log('加载模拟数据');
     // 设置累计专注数据
     const { totalCount, totalMinutes, dailyAverage } = mockData.totalStats;
     this.setData({ totalCount, totalMinutes, dailyAverage });
@@ -189,7 +238,8 @@ Page({
   
   // 简化版图表绘制函数
   drawChartSimple: function() {
-    const { distributionData } = this.data;
+    console.log('绘制图表', this.data.distributionType);
+    const { distributionData, distributionType } = this.data;
     const ctx = wx.createCanvasContext('columnCanvas');
     const width = this.data.canvasWidth;
     const height = this.data.canvasHeight;
@@ -199,6 +249,7 @@ Page({
     ctx.clearRect(0, 0, width, height);
     
     if (!distributionData || distributionData.length === 0) {
+      ctx.draw();
       return;
     }
     
@@ -224,6 +275,13 @@ Page({
     ctx.lineTo(width - padding, height - padding); // x轴
     ctx.stroke();
     
+    // Y轴
+    ctx.beginPath();
+    ctx.setStrokeStyle('#cccccc');
+    ctx.moveTo(padding, padding);
+    ctx.lineTo(padding, height - padding);
+    ctx.stroke();
+    
     // 绘制柱状图
     distributionData.forEach((item, index) => {
       const x = padding + index * barSpacing + (barSpacing - barWidth) / 2;
@@ -236,15 +294,37 @@ Page({
       ctx.rect(x, y, barWidth, barHeight);
       ctx.fill();
       
-      // 绘制文本标签（如果空间足够）
-      if (barCount < 12 || distributionType === 'week') {
+      // 绘制文本标签（根据不同类型调整显示策略）
+      if (distributionType === 'week' || (distributionType === 'day' && barCount <= 12) || 
+          (distributionType === 'month' && barCount <= 15)) {
         ctx.setFontSize(10);
         ctx.setFillStyle('#666666');
         const label = item.label;
-        const textWidth = ctx.measureText(label).width;
-        ctx.fillText(label, x + (barWidth - textWidth) / 2, height - padding + 15);
+        const textWidth = ctx.measureText(label).width || 10;
+        
+        // 优化标签显示位置
+        const labelX = Math.max(
+          x + (barWidth - textWidth) / 2,
+          padding  // 确保不会超出左边界
+        );
+        ctx.fillText(label, labelX, height - padding + 15);
+      }
+      
+      // 显示数值
+      if (item.minutes > 0) {
+        ctx.setFontSize(9);
+        ctx.setFillStyle('#666666');
+        const value = item.minutes.toString();
+        const valueWidth = ctx.measureText(value).width || 10;
+        const valueX = x + (barWidth - valueWidth) / 2;
+        ctx.fillText(value, valueX, y - 5);
       }
     });
+    
+    // 添加Y轴最大值标签
+    ctx.setFontSize(10);
+    ctx.setFillStyle('#666666');
+    ctx.fillText(maxValue.toString(), padding - 15, padding + 10);
     
     // 绘制
     ctx.draw();
@@ -326,19 +406,30 @@ Page({
   // 切换分布类型
   switchDistributionType: function(e) {
     const type = e.currentTarget.dataset.type;
+    console.log('切换分布类型:', type);
+    
+    // 如果已经是当前选中的类型，不做处理
+    if (type === this.data.distributionType) {
+      return;
+    }
+    
+    // 更新状态
     this.setData({ 
       distributionType: type,
-      tabIndex: e.currentTarget.dataset.index
+      chartLoading: true
     });
     
     // 更新分布数据
     const distributionData = mockData.distribution[type] || [];
-    this.setData({ distributionData });
+    this.setData({ 
+      distributionData
+    });
     
     // 重新绘制图表
     setTimeout(() => {
       this.drawChartSimple();
-    }, 100);
+      this.setData({ chartLoading: false });
+    }, 200);
   },
   
   // 切换日期
@@ -389,5 +480,297 @@ Page({
       title: '该功能暂未实现',
       icon: 'none'
     });
-  }
+  },
+  
+  // 完全重写drawPieChart方法，兼容新版与旧版canvas
+  drawPieChart: function() {
+    const that = this;
+    try {
+      // 优化数据，将较小的值合并为"其他"类别，以避免图例过多
+      const pieData = this.optimizePieData(this.data.pieChartData);
+      this.setData({ pieChartData: pieData });
+      
+      // 原有的绘图逻辑
+      const query = wx.createSelectorQuery();
+      query.select('#pieCanvas')
+        .fields({ node: true, size: true })
+        .exec((res) => {
+          if (res && res[0] && res[0].node) {
+            // 新版canvas
+            console.log('使用新版Canvas 2D API绘制饼图');
+            const canvas = res[0].node;
+            const ctx = canvas.getContext('2d');
+            
+            // 设置canvas实际大小为正方形
+            const size = 300;
+            const dpr = wx.getSystemInfoSync().pixelRatio;
+            canvas.width = size * dpr;
+            canvas.height = size * dpr;
+            ctx.scale(dpr, dpr);
+            
+            // 绘制饼图
+            that._drawPieChartWithContext(ctx, size, size);
+          } else {
+            // 尝试使用旧版接口
+            console.log('使用旧版Canvas API绘制饼图');
+            const ctx = wx.createCanvasContext('pieCanvas', that);
+            that._drawPieChartWithLegacyContext(ctx);
+          }
+        });
+    } catch (e) {
+      console.error('绘制饼图失败：', e);
+      // 最后的备选方案：使用旧接口
+      try {
+        const ctx = wx.createCanvasContext('pieCanvas', this);
+        this._drawPieChartWithLegacyContext(ctx);
+      } catch (err) {
+        console.error('备选绘制饼图也失败了：', err);
+        // 显示错误提示
+        wx.showToast({
+          title: '图表绘制失败',
+          icon: 'none'
+        });
+      }
+    }
+  },
+
+  // 点击图例突出显示对应扇区
+  highlightPieSlice: function(e) {
+    const index = e.currentTarget.dataset.index;
+    let pieData = [...this.data.pieChartData];
+    
+    // 如果当前点击项已经是高亮，则取消高亮
+    if (pieData[index].highlight) {
+      pieData[index].highlight = false;
+      this.setData({ pieChartData: pieData });
+      setTimeout(() => {
+        this.drawPieChart();
+      }, 50);
+      return;
+    }
+    
+    // 重置所有高亮状态
+    pieData = pieData.map(item => {
+      return { ...item, highlight: false };
+    });
+    
+    // 设置当前点击项的高亮状态
+    pieData[index].highlight = true;
+    
+    this.setData({ pieChartData: pieData });
+    
+    // 重绘饼图
+    setTimeout(() => {
+      this.drawPieChart();
+    }, 50);
+  },
+  
+  // 使用新版context绘制饼图
+  _drawPieChartWithContext: function(ctx, canvasWidth, canvasHeight) {
+    const data = this.data.pieChartData;
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    
+    // 调整为正方形区域
+    const size = Math.min(canvasWidth, canvasHeight);
+    const centerX = size / 2;
+    const centerY = size / 2;
+    const radius = size * 0.4; // 调整饼图大小
+    const innerRadius = radius * 0.5; // 增大内圈比例，使甜甜圈更窄
+    
+    // 计算每项的百分比
+    data.forEach(item => {
+      const percent = Math.round((item.value / total) * 100);
+      item.percent = percent + '%';
+    });
+    
+    // 清空整个画布
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+    
+    // 绘制白色底圆
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius + 2, 0, Math.PI * 2, false);
+    ctx.fillStyle = '#f5f5f5'; // 非常淡的灰色作为底色
+    ctx.fill();
+    
+    // 设置阴影
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 3;
+    
+    let startAngle = -0.5 * Math.PI; // 从顶部开始绘制
+    
+    // 绘制饼图扇形
+    data.forEach((item, index) => {
+      if (!item.value) return; // 跳过数值为0的项
+      
+      const angle = (item.value / total) * 2 * Math.PI;
+      const endAngle = startAngle + angle;
+      const midAngle = startAngle + angle / 2;
+      
+      // 设置高亮偏移（减小偏移量）
+      let offsetX = 0, offsetY = 0;
+      if (item.highlight) {
+        offsetX = Math.cos(midAngle) * 5;
+        offsetY = Math.sin(midAngle) * 5;
+      }
+      
+      // 开始绘制扇形
+      ctx.beginPath();
+      
+      // 绘制圆环扇形（甜甜圈效果）
+      ctx.arc(centerX + offsetX, centerY + offsetY, radius, startAngle, endAngle, false);
+      ctx.arc(centerX + offsetX, centerY + offsetY, innerRadius, endAngle, startAngle, true);
+      
+      ctx.closePath();
+      
+      // 填充颜色
+      ctx.fillStyle = item.color;
+      ctx.fill();
+      
+      // 如果是高亮项，添加边缘描边
+      if (item.highlight) {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      
+      // 添加标签 - 放在圆环中间而不是扇形内部
+      const labelRadius = (innerRadius + radius) / 2;
+      const x = centerX + offsetX + labelRadius * Math.cos(midAngle);
+      const y = centerY + offsetY + labelRadius * Math.sin(midAngle);
+      
+      // 添加百分比标签
+      if (angle > 0.15) { // 只为较大的扇形添加标签
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.percent, x, y);
+      }
+      
+      startAngle = endAngle;
+    });
+    
+    // 绘制中心圆
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerRadius - 1, 0, Math.PI * 2, false);
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'transparent'; // 清除阴影
+    ctx.fill();
+    
+    // 更新图例中的百分比
+    this.setData({ pieChartData: data });
+  },
+
+  // 使用旧版context绘制饼图 - 保持一致的绘制方法和颜色
+  _drawPieChartWithLegacyContext: function(ctx) {
+    const data = this.data.pieChartData;
+    const total = data.reduce((sum, item) => sum + item.value, 0);
+    const centerX = 150; 
+    const centerY = 150;
+    const radius = 110; // 增大半径，确保饼图更圆
+    const innerRadius = radius * 0.5; // 内圆半径
+    
+    // 计算每项的百分比
+    data.forEach(item => {
+      const percent = Math.round((item.value / total) * 100);
+      item.percent = percent + '%';
+    });
+    
+    // 清空画布
+    ctx.clearRect(0, 0, 300, 300);
+    
+    // 绘制白色底圆
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius + 2, 0, Math.PI * 2, false);
+    ctx.setFillStyle('#f5f5f5');
+    ctx.fill();
+    
+    // 设置阴影
+    ctx.setShadow(0, 3, 12, 'rgba(0, 0, 0, 0.08)');
+    
+    let startAngle = -0.5 * Math.PI; // 从顶部开始绘制
+    
+    // 绘制饼图扇形
+    data.forEach((item, index) => {
+      if (!item.value) return; // 跳过数值为0的项
+      
+      const angle = (item.value / total) * 2 * Math.PI;
+      const endAngle = startAngle + angle;
+      const midAngle = startAngle + angle / 2;
+      
+      // 设置高亮偏移（减小偏移量）
+      let offsetX = 0, offsetY = 0;
+      if (item.highlight) {
+        offsetX = Math.cos(midAngle) * 5;
+        offsetY = Math.sin(midAngle) * 5;
+      }
+      
+      // 开始绘制外圆弧
+      ctx.beginPath();
+      ctx.arc(centerX + offsetX, centerY + offsetY, radius, startAngle, endAngle, false);
+      // 绘制内圆弧
+      ctx.arc(centerX + offsetX, centerY + offsetY, innerRadius, endAngle, startAngle, true);
+      
+      ctx.closePath();
+      
+      // 填充颜色
+      ctx.setFillStyle(item.color);
+      ctx.fill();
+      
+      // 如果是高亮项，添加边缘描边
+      if (item.highlight) {
+        ctx.setStrokeStyle('#fff');
+        ctx.setLineWidth(1);
+        ctx.stroke();
+      }
+      
+      // 添加标签
+      const labelRadius = (innerRadius + radius) / 2;
+      const x = centerX + offsetX + labelRadius * Math.cos(midAngle);
+      const y = centerY + offsetY + labelRadius * Math.sin(midAngle);
+      
+      // 添加百分比标签
+      if (angle > 0.15) { // 只为较大的扇形添加标签
+        ctx.setFillStyle('#fff');
+        ctx.setFontSize(14);
+        ctx.setTextAlign('center');
+        ctx.setTextBaseline('middle');
+        ctx.fillText(item.percent, x, y);
+      }
+      
+      startAngle = endAngle;
+    });
+    
+    // 绘制中心圆
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerRadius - 1, 0, Math.PI * 2, false);
+    ctx.setFillStyle('#ffffff');
+    ctx.setShadow(0, 0, 0, 'transparent'); // 清除阴影
+    ctx.fill();
+    
+    // 更新图例中的百分比
+    this.setData({ pieChartData: data });
+    
+    // 绘制
+    ctx.draw();
+  },
+
+  // 优化饼图数据，确保颜色和排序一致
+  optimizePieData: function(originalData) {
+    // 按值从大到小排序
+    const sortedData = [...originalData].sort((a, b) => b.value - a.value);
+    
+    // 重新赋予预定义的颜色，确保一致性
+    const colors = ['#FF9F7F', '#FFD666', '#FFAA85', '#FF7F7F', '#FFA07A', '#FADEC9'];
+    
+    sortedData.forEach((item, index) => {
+      if (index < colors.length) {
+        item.color = colors[index];
+      }
+    });
+    
+    return sortedData;
+  },
 }) 

@@ -1,11 +1,12 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import { getTodos, getAims, getPomodoros, getUsers, callCloudFunction } from '../services/cloudDbService'
 
 // 注册Chart.js组件
 Chart.register(...registerables)
 
-// 模拟数据
+// 数据状态
 const totalUsers = ref(0)
 const totalTodos = ref(0)
 const completedTodos = ref(0)
@@ -13,26 +14,20 @@ const totalPomodoros = ref(0)
 const totalAims = ref(0)
 const completedAims = ref(0)
 const isLoading = ref(true)
+const errorMessage = ref('')
+const cloudFunctionResult = ref(null)
 
-// 每日任务完成统计数据
-const dailyStats = ref([
-  { date: '2025-06-25', completed: 5, created: 8 },
-  { date: '2025-06-26', completed: 7, created: 6 },
-  { date: '2025-06-27', completed: 3, created: 4 },
-  { date: '2025-06-28', completed: 8, created: 9 },
-  { date: '2025-06-29', completed: 6, created: 5 },
-  { date: '2025-06-30', completed: 9, created: 7 },
-  { date: '2025-07-01', completed: 12, created: 10 }
-])
+// 每日任务完成统计数据 - 初始化为空数组，将通过API获取
+const dailyStats = ref([])
 
-// 用户活跃度数据（静态数据）
-const userActivityData = {
+// 用户活跃度数据 - 初始化为空对象，将通过API获取或计算得到
+const userActivityData = ref({
   weekly: {
-    labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+    labels: [],
     datasets: [
       {
         label: '日活跃用户',
-        data: [32, 45, 39, 28, 52, 38, 42],
+        data: [],
         backgroundColor: 'rgba(67, 97, 238, 0.2)',
         borderColor: 'rgba(67, 97, 238, 1)',
         borderWidth: 2,
@@ -40,8 +35,8 @@ const userActivityData = {
         fill: true
       },
       {
-        label: '完成任务用户',
-        data: [18, 25, 22, 16, 28, 20, 24],
+        label: '完成日程用户',
+        data: [],
         backgroundColor: 'rgba(103, 194, 58, 0.2)',
         borderColor: 'rgba(103, 194, 58, 1)',
         borderWidth: 2,
@@ -51,11 +46,11 @@ const userActivityData = {
     ]
   },
   monthly: {
-    labels: ['1周', '2周', '3周', '4周'],
+    labels: [],
     datasets: [
       {
         label: '周活跃用户',
-        data: [85, 102, 128, 96],
+        data: [],
         backgroundColor: 'rgba(67, 97, 238, 0.2)',
         borderColor: 'rgba(67, 97, 238, 1)',
         borderWidth: 2,
@@ -63,8 +58,8 @@ const userActivityData = {
         fill: true
       },
       {
-        label: '完成任务用户',
-        data: [42, 58, 74, 51],
+        label: '完成日程用户',
+        data: [],
         backgroundColor: 'rgba(103, 194, 58, 0.2)',
         borderColor: 'rgba(103, 194, 58, 1)',
         borderWidth: 2,
@@ -73,63 +68,18 @@ const userActivityData = {
       }
     ]
   }
-}
+})
 
-// 目标完成情况数据（静态数据）
-const aimsData = ref([
-  {
-    id: '6149379668864a17a044c65903cdc2f93',
-    title: '考研第二阶段',
-    category: '学习',
-    progress: 45,
-    deadline: '2025-07-15 08:00:00',
-    description: '完成数学的一轮复习',
-    todoCount: 5,
-    completedTodoCount: 2,
-    totalTime: 1000
-  },
-  {
-    id: '7a8b6c5d4e3f2g1h0i9j8k7l6m5n4o3p',
-    title: '健身计划',
-    category: '健康',
-    progress: 70,
-    deadline: '2025-07-30 08:00:00',
-    description: '坚持每周健身三次',
-    todoCount: 8,
-    completedTodoCount: 5,
-    totalTime: 720
-  },
-  {
-    id: '1q2w3e4r5t6y7u8i9o0p1a2s3d4f5g6h',
-    title: '学习Vue.js',
-    category: '技术',
-    progress: 30,
-    deadline: '2025-08-15 08:00:00',
-    description: '完成Vue.js入门到精通',
-    todoCount: 10,
-    completedTodoCount: 3,
-    totalTime: 1500
-  },
-  {
-    id: '7j8k9l0m1n2b3v4c5x6z7a8s9d0f1g2h',
-    title: '阅读计划',
-    category: '阅读',
-    progress: 85,
-    deadline: '2025-07-10 08:00:00',
-    description: '每月阅读两本书',
-    todoCount: 6,
-    completedTodoCount: 5,
-    totalTime: 500
-  }
-])
+// 目标完成情况数据 - 初始化为空数组，将通过API获取
+const aimsData = ref([])
 
-// 按照目标分类的统计数据
-const aimCategoryData = {
-  labels: ['学习', '健康', '技术', '阅读', '工作', '生活'],
+// 按照目标分类的统计数据 - 初始化为空对象，将通过API获取或计算得到
+const aimCategoryData = ref({
+  labels: [],
   datasets: [
     {
       label: '目标数量',
-      data: [8, 5, 7, 4, 6, 3],
+      data: [],
       backgroundColor: [
         'rgba(67, 97, 238, 0.7)',
         'rgba(76, 201, 240, 0.7)',
@@ -141,7 +91,7 @@ const aimCategoryData = {
       borderWidth: 0
     }
   ]
-}
+})
 
 // 当前选择的时间段
 const activePeriod = ref('weekly')
@@ -149,6 +99,118 @@ const activePeriod = ref('weekly')
 // 初始化图表
 let userActivityChart = null
 let aimCategoryChart = null
+
+// 趋势数据
+const trend = reactive({
+  users: { up: true, percent: 0 },
+  aims: { up: true, percent: 0 },
+  todos: { up: true, percent: 0 },
+  pomodoros: { up: true, percent: 0 }
+});
+
+// 活跃用户计数
+const activeUserCounts = reactive({
+  today: 0,
+  weekly: 0,
+  monthly: 0
+});
+
+// 辅助函数：解析日期字段
+const parseDate = (item, fields) => {
+  for (const f of fields) {
+    if (item[f]) {
+      const d = new Date(item[f]);
+      if (!isNaN(d)) return d;
+    }
+  }
+  return null;
+};
+
+// 计算趋势
+const calculateTrend = (array, fields) => {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(todayStart.getDate() - 1);
+
+  let countToday = 0;
+  let countYesterday = 0;
+
+  array.forEach(item => {
+    const d = parseDate(item, fields);
+    if (!d) return;
+    if (d >= todayStart) {
+      countToday++;
+    } else if (d >= yesterdayStart && d < todayStart) {
+      countYesterday++;
+    }
+  });
+
+  const diff = countToday - countYesterday;
+  const up = diff >= 0;
+  const percent = countYesterday === 0 ? (diff > 0 ? 100 : 0) : Math.round(Math.abs(diff) / countYesterday * 100);
+  return { up, percent };
+};
+
+// 更新趋势
+const updateTrendStats = () => {
+  trend.users = calculateTrend(users.value, ['createTime', 'create_time', 'registrationTime', 'regTime', 'createdAt']);
+  trend.aims = calculateTrend(aims.value, ['createTime', 'create_time', 'createdAt']);
+  trend.todos = calculateTrend(todos.value, ['createTime', 'create_time', 'createdAt']);
+  trend.pomodoros = calculateTrend(pomodoros.value, ['starttime', 'startTime', 'start', 'start_at', 'createTime']);
+
+  // 计算活跃用户
+  computeActiveUsers();
+
+  // 准备用户活跃度折线图数据
+  prepareUserActivityData();
+
+  // 更新图表数据
+  prepareDailyStatsData();
+  prepareAimCategoryData();
+
+  // 图表初始化
+  createUserActivityChart();
+  createAimCategoryChart();
+};
+
+// 计算活跃用户
+const computeActiveUsers = () => {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(todayStart.getDate() - 6); // 包含今天，共7天
+
+  const monthStart = new Date(todayStart);
+  monthStart.setDate(todayStart.getDate() - 29); // 包含今天，共30天
+
+  const todaySet = new Set();
+  const weekSet = new Set();
+  const monthSet = new Set();
+
+  const processEvent = (openid, dateStr) => {
+    if (!openid || !dateStr) return;
+    const d = new Date(dateStr);
+    if (isNaN(d)) return;
+
+    if (d >= todayStart) todaySet.add(openid);
+    if (d >= weekStart) weekSet.add(openid);
+    if (d >= monthStart) monthSet.add(openid);
+  };
+
+  todos.value.forEach(todo => {
+    processEvent(todo._openid, todo.updateTime || todo.createTime);
+  });
+
+  pomodoros.value.forEach(pomo => {
+    processEvent(pomo._openid, pomo.endtime || pomo.starttime);
+  });
+
+  activeUserCounts.today = todaySet.size;
+  activeUserCounts.weekly = weekSet.size;
+  activeUserCounts.monthly = monthSet.size;
+};
 
 // 创建用户活跃度图表
 const createUserActivityChart = () => {
@@ -161,7 +223,7 @@ const createUserActivityChart = () => {
 
   userActivityChart = new Chart(ctx, {
     type: 'line',
-    data: activePeriod.value === 'weekly' ? userActivityData.weekly : userActivityData.monthly,
+    data: activePeriod.value === 'weekly' ? userActivityData.value.weekly : userActivityData.value.monthly,
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -206,7 +268,7 @@ const createAimCategoryChart = () => {
 
   aimCategoryChart = new Chart(ctx, {
     type: 'pie',
-    data: aimCategoryData,
+    data: aimCategoryData.value,
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -257,23 +319,365 @@ const sortedAimsByDeadline = computed(() => {
   })
 })
 
-// 模拟数据加载
-onMounted(() => {
-  // 模拟API请求延迟
-  setTimeout(() => {
-    totalUsers.value = 158
-    totalTodos.value = 467
-    completedTodos.value = 312
-    totalPomodoros.value = 1289
-    totalAims.value = 33
-    completedAims.value = 18
-    isLoading.value = false
+// 数据状态
+const todos = ref([])
+const aims = ref([])
+const pomodoros = ref([])
+const users = ref([])
+const userMap = ref({})
+
+// 准备七天的日期标签
+const prepareDailyStatsData = () => {
+  const result = [];
+  const today = new Date();
+
+  // 获取过去7天的日期
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(today.getDate() - i);
+
+    // 格式化日期为 YYYY-MM-DD
+    const formattedDate = date.toISOString().split('T')[0];
+
+    // 获取当天创建和完成的任务数量
+    const todayTodos = todos.value.filter(todo => {
+      const todoDate = new Date(todo.createTime).toISOString().split('T')[0];
+      return todoDate === formattedDate;
+    });
+
+    const completedTodayTodos = todayTodos.filter(todo => todo.completed);
+
+    result.push({
+      date: formattedDate,
+      created: todayTodos.length,
+      completed: completedTodayTodos.length
+    });
+  }
+
+  dailyStats.value = result;
+};
+
+// 准备用户活跃度数据
+const prepareUserActivityData = () => {
+  // 最近7天（日活）
+  const weekDays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  const weeklyActiveUsers = new Array(7).fill(0).map(() => new Set());
+  const weeklyCompletedTaskUsers = new Array(7).fill(0).map(() => new Set());
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const addToBucket = (openid, eventDate, bucketSets) => {
+    const diffDays = Math.floor((today - eventDate) / (1000 * 60 * 60 * 24));
+    const index = 6 - diffDays; // 0表示最左(周一前6天)，6表示今天
+    if (index >= 0 && index < 7) {
+      bucketSets[index].add(openid);
+    }
+  };
+
+  todos.value.forEach(todo => {
+    const d = new Date(todo.updateTime || todo.createTime);
+    if (isNaN(d)) return;
+    const openid = todo._openid;
+    addToBucket(openid, d, weeklyActiveUsers);
+    if (todo.completed) addToBucket(openid, d, weeklyCompletedTaskUsers);
+  });
+
+  pomodoros.value.forEach(pomo => {
+    const d = new Date(pomo.endtime || pomo.starttime);
+    if (isNaN(d)) return;
+    const openid = pomo._openid;
+    addToBucket(openid, d, weeklyActiveUsers);
+  });
+
+  const weeklyActiveCounts = weeklyActiveUsers.map(set => set.size);
+  const weeklyCompletedCounts = weeklyCompletedTaskUsers.map(set => set.size);
+
+  userActivityData.value.weekly = {
+    labels: weekDays,
+    datasets: [
+      {
+        label: '日活跃用户',
+        data: weeklyActiveCounts,
+        backgroundColor: 'rgba(67, 97, 238, 0.2)',
+        borderColor: 'rgba(67, 97, 238, 1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
+      },
+      {
+        label: '完成日程用户',
+        data: weeklyCompletedCounts,
+        backgroundColor: 'rgba(103, 194, 58, 0.2)',
+        borderColor: 'rgba(103, 194, 58, 1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
+      }
+    ]
+  };
+
+  // 最近4周（周活）
+  const monthWeeks = ['1周', '2周', '3周', '4周'];
+  const monthlyActiveBuckets = new Array(4).fill(0).map(() => new Set());
+
+  const addToWeekBucket = (openid, d) => {
+    const diffDays = Math.floor((today - d) / (1000 * 60 * 60 * 24));
+    const index = Math.floor((29 - diffDays) / 7); // 0~3 对应4周
+    if (index >= 0 && index < 4) {
+      monthlyActiveBuckets[index].add(openid);
+    }
+  };
+
+  todos.value.forEach(todo => {
+    const d = new Date(todo.updateTime || todo.createTime);
+    if (isNaN(d)) return;
+    addToWeekBucket(todo._openid, d);
+  });
+
+  pomodoros.value.forEach(pomo => {
+    const d = new Date(pomo.endtime || pomo.starttime);
+    if (isNaN(d)) return;
+    addToWeekBucket(pomo._openid, d);
+  });
+
+  const monthlyActiveCounts = monthlyActiveBuckets.map(set => set.size);
+
+  userActivityData.value.monthly = {
+    labels: monthWeeks,
+    datasets: [
+      {
+        label: '周活跃用户',
+        data: monthlyActiveCounts,
+        backgroundColor: 'rgba(67, 97, 238, 0.2)',
+        borderColor: 'rgba(67, 97, 238, 1)',
+        borderWidth: 2,
+        tension: 0.4,
+        fill: true
+      }
+    ]
+  };
+};
+
+// 准备目标分类数据
+const prepareAimCategoryData = () => {
+  // 根据aims数据计算每个分类的数量
+  const categories = {};
+
+  console.log('准备目标分类数据，当前目标数据:', aims.value);
+
+  if (aims.value && aims.value.length > 0) {
+    aims.value.forEach(aim => {
+      const category = aim.category || '未分类';
+      categories[category] = (categories[category] || 0) + 1;
+    });
+  } else {
+    // 如果没有目标数据，添加一个默认分类
+    categories['暂无数据'] = 1;
+  }
+
+  // 将分类数据转换为图表格式
+  const categoryLabels = Object.keys(categories);
+  const categoryData = categoryLabels.map(label => categories[label]);
+
+  console.log('生成的目标分类数据:', { labels: categoryLabels, data: categoryData });
+
+  aimCategoryData.value = {
+    labels: categoryLabels,
+    datasets: [
+      {
+        label: '目标数量',
+        data: categoryData,
+        backgroundColor: [
+          'rgba(67, 97, 238, 0.7)',
+          'rgba(76, 201, 240, 0.7)',
+          'rgba(103, 194, 58, 0.7)',
+          'rgba(247, 37, 133, 0.7)',
+          'rgba(255, 173, 13, 0.7)',
+          'rgba(58, 134, 255, 0.7)'
+        ],
+        borderWidth: 0
+      }
+    ]
+  };
+};
+
+// 加载数据
+const loadData = async () => {
+  isLoading.value = true;
+  errorMessage.value = '';
+
+  try {
+    console.log('开始加载仪表盘数据...');
+
+    // 首先尝试使用云函数获取统计数据
+    let statsData = null;
+    try {
+      console.log('尝试调用getStatistics云函数获取统计数据');
+      const result = await callCloudFunction('getStatistics', {});
+      statsData = result?.result?.stats;
+      cloudFunctionResult.value = result;
+      console.log('云函数获取的统计数据:', statsData);
+    } catch (cloudFnError) {
+      console.error('调用云函数失败，将尝试直接查询数据:', cloudFnError);
+    }
+
+    // 并行获取所有数据
+    console.log('开始并行获取todos, aims, pomodoros数据');
+    let todosData = [], aimsResult = [], pomodorosData = [], usersResult = [];
+
+    try {
+      todosData = await getTodos().catch(err => {
+        console.error('获取todos数据失败:', err);
+        return [];
+      });
+      console.log('成功获取todos数据:', todosData?.length || 0);
+    } catch (todoError) {
+      console.error('获取todos数据出错:', todoError);
+    }
+
+    try {
+      aimsResult = await getAims().catch(err => {
+        console.error('获取aims数据失败:', err);
+        return [];
+      });
+      console.log('成功获取aims数据:', aimsResult?.length || 0);
+    } catch (aimError) {
+      console.error('获取aims数据出错:', aimError);
+    }
+
+    try {
+      pomodorosData = await getPomodoros().catch(err => {
+        console.error('获取pomodoros数据失败:', err);
+        return [];
+      });
+      console.log('成功获取pomodoros数据:', pomodorosData?.length || 0);
+    } catch (pomodoroError) {
+      console.error('获取pomodoros数据出错:', pomodoroError);
+    }
+
+    try {
+      usersResult = await getUsers().catch(err => {
+        console.error('获取users数据失败:', err);
+        return [];
+      });
+      console.log('成功获取users数据:', usersResult?.length || 0);
+    } catch (userError) {
+      console.error('获取users数据出错:', userError);
+    }
+
+    console.log('数据获取结果:', {
+      todos: todosData?.length || 0,
+      aims: aimsResult?.length || 0,
+      pomodoros: pomodorosData?.length || 0
+    });
+
+    // 确保数据是数组类型
+    todos.value = Array.isArray(todosData) ? todosData : [];
+    aims.value = Array.isArray(aimsResult) ? aimsResult : [];
+    pomodoros.value = Array.isArray(pomodorosData) ? pomodorosData : [];
+    aimsData.value = Array.isArray(aimsResult) ? aimsResult : [];
+    users.value = Array.isArray(usersResult) ? usersResult : [];
+
+    // 构建用户映射
+    userMap.value = users.value.reduce((map, user) => {
+      const openid = user._openid || user.openid;
+      if (openid) map[openid] = user.nickname || user.nickName || user.name || '未知用户';
+      return map;
+    }, {});
+
+    // 在aims数据中附加用户昵称
+    if (Array.isArray(aimsResult)) {
+      aimsResult.forEach(aim => {
+        const nick = userMap.value[aim._openid] || '未知用户';
+        aim.userNickname = nick;
+      });
+    }
+
+    // 更新用户统计
+    totalUsers.value = users.value.length;
+
+    // 更新趋势
+    updateTrendStats();
+
+    // 如果从云函数获取到了数据，使用云函数的统计结果
+    if (statsData) {
+      totalTodos.value = statsData.todos?.total || todosData?.length || 0;
+      completedTodos.value = statsData.todos?.completed || 0;
+      totalAims.value = statsData.aims?.total || aimsResult?.length || 0;
+      completedAims.value = statsData.aims?.completed || 0;
+      totalPomodoros.value = statsData.pomodoros?.total || pomodorosData?.length || 0;
+    } else {
+      // 否则使用前端计算的统计数据
+      totalTodos.value = todosData?.length || 0;
+      completedTodos.value = todosData?.filter(todo => todo.completed)?.length || 0;
+      totalAims.value = aimsResult?.length || 0;
+      completedAims.value = aimsResult?.filter(aim => aim.progress === 100)?.length || 0;
+      totalPomodoros.value = pomodorosData?.length || 0;
+    }
+
+    // 更新图表数据
+    prepareDailyStatsData();
+    prepareUserActivityData();
+    prepareAimCategoryData();
+
+    console.log('数据统计:', {
+      totalTodos: totalTodos.value,
+      completedTodos: completedTodos.value,
+      totalAims: totalAims.value,
+      completedAims: completedAims.value,
+      totalPomodoros: totalPomodoros.value
+    });
 
     // 图表初始化
-    createUserActivityChart()
-    createAimCategoryChart()
-  }, 800)
-})
+    createUserActivityChart();
+    createAimCategoryChart();
+
+    console.log('仪表盘数据加载完成');
+  } catch (error) {
+    console.error('加载数据失败:', error);
+    errorMessage.value = `数据加载失败: ${error.message || '未知错误'}`;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 调用云函数示例
+const callCustomCloudFunction = async () => {
+  try {
+    isLoading.value = true;
+    console.log('开始调用getStatistics云函数...');
+
+    // 调用getStatistics云函数
+    const result = await callCloudFunction('getStatistics', {
+      // 如果需要获取特定用户的数据，可以传入userId
+      // userId: 'o2ch25FQ2FpXs1fYC3JyOWo-hUKo'  
+    });
+
+    cloudFunctionResult.value = result;
+    console.log('云函数调用成功:', result);
+
+    // 如果云函数返回了统计数据，更新页面上的统计信息
+    if (result?.result?.stats) {
+      const stats = result.result.stats;
+      totalTodos.value = stats.todos?.total || 0;
+      completedTodos.value = stats.todos?.completed || 0;
+      totalAims.value = stats.aims?.total || 0;
+      completedAims.value = stats.aims?.completed || 0;
+      totalPomodoros.value = stats.pomodoros?.total || 0;
+    }
+  } catch (error) {
+    console.error('云函数调用失败:', error);
+    errorMessage.value = `云函数调用失败: ${error.message || '未知错误'}`;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 页面加载时获取数据
+onMounted(() => {
+  loadData();
+});
 </script>
 
 <template>
@@ -290,8 +694,8 @@ onMounted(() => {
           <div class="stat-value">{{ isLoading ? '-' : totalUsers }}</div>
           <div class="stat-label">总用户数</div>
         </div>
-        <div class="stat-trend up">
-          <span>↑ 12%</span>
+        <div class="stat-trend" :class="trend.users.up ? 'up' : 'down'">
+          <span>{{ trend.users.up ? '↑' : '↓' }} {{ trend.users.percent }}%</span>
         </div>
       </div>
 
@@ -302,8 +706,8 @@ onMounted(() => {
           <div class="stat-label">总目标数</div>
           <div class="stat-sublabel">完成率: {{ isLoading ? '-' : Math.round(completedAims / totalAims * 100) }}%</div>
         </div>
-        <div class="stat-trend up">
-          <span>↑ 10%</span>
+        <div class="stat-trend" :class="trend.aims.up ? 'up' : 'down'">
+          <span>{{ trend.aims.up ? '↑' : '↓' }} {{ trend.aims.percent }}%</span>
         </div>
       </div>
 
@@ -311,12 +715,12 @@ onMounted(() => {
         <div class="stat-icon todos-icon">📝</div>
         <div class="stat-info">
           <div class="stat-value">{{ isLoading ? '-' : totalTodos }}</div>
-          <div class="stat-label">总任务数</div>
+          <div class="stat-label">总日程数</div>
           <div class="stat-sublabel">完成率: {{ isLoading ? '-' : (totalTodos ? Math.round(completedTodos / totalTodos *
             100) : 0) }}%</div>
         </div>
-        <div class="stat-trend up">
-          <span>↑ 8%</span>
+        <div class="stat-trend" :class="trend.todos.up ? 'up' : 'down'">
+          <span>{{ trend.todos.up ? '↑' : '↓' }} {{ trend.todos.percent }}%</span>
         </div>
       </div>
 
@@ -326,8 +730,8 @@ onMounted(() => {
           <div class="stat-value">{{ isLoading ? '-' : totalPomodoros }}</div>
           <div class="stat-label">总番茄钟数</div>
         </div>
-        <div class="stat-trend up">
-          <span>↑ 15%</span>
+        <div class="stat-trend" :class="trend.pomodoros.up ? 'up' : 'down'">
+          <span>{{ trend.pomodoros.up ? '↑' : '↓' }} {{ trend.pomodoros.percent }}%</span>
         </div>
       </div>
     </div>
@@ -350,8 +754,9 @@ onMounted(() => {
               <tr>
                 <th>目标名称</th>
                 <th>分类</th>
+                <th>用户</th>
                 <th>截止日期</th>
-                <th>任务完成</th>
+                <th>日程完成</th>
                 <th>进度</th>
               </tr>
             </thead>
@@ -362,6 +767,7 @@ onMounted(() => {
                   <div class="aim-description">{{ aim.description }}</div>
                 </td>
                 <td><span class="aim-category">{{ aim.category }}</span></td>
+                <td>{{ aim.userNickname }}</td>
                 <td>{{ new Date(aim.deadline).toLocaleDateString() }}</td>
                 <td>{{ aim.completedTodoCount }}/{{ aim.todoCount }}</td>
                 <td>
@@ -419,7 +825,7 @@ onMounted(() => {
               <div class="aim-stat-icon">⚡</div>
               <div class="aim-stat-info">
                 <div class="aim-stat-value">{{ Math.round(totalTodos / totalAimCount) }}</div>
-                <div class="aim-stat-label">平均任务数</div>
+                <div class="aim-stat-label">平均日程数</div>
               </div>
             </div>
           </div>
@@ -429,7 +835,7 @@ onMounted(() => {
       <!-- 第三行 -->
       <div class="chart-container">
         <div class="chart-header">
-          <h2>每日任务完成情况</h2>
+          <h2>每日日程完成情况</h2>
           <div class="chart-actions">
             <span class="chart-period active">周</span>
             <span class="chart-period">月</span>
@@ -442,8 +848,8 @@ onMounted(() => {
             <thead>
               <tr>
                 <th>日期</th>
-                <th>新建任务</th>
-                <th>完成任务</th>
+                <th>新建日程</th>
+                <th>完成日程</th>
                 <th>完成率</th>
                 <th>趋势</th>
               </tr>
@@ -485,15 +891,15 @@ onMounted(() => {
         <div class="chart-content">
           <div class="active-users-display">
             <div class="active-users-item">
-              <div class="active-users-value">42</div>
+              <div class="active-users-value">{{ activeUserCounts.today }}</div>
               <div class="active-users-label">今日活跃</div>
             </div>
             <div class="active-users-item">
-              <div class="active-users-value">128</div>
+              <div class="active-users-value">{{ activeUserCounts.weekly }}</div>
               <div class="active-users-label">本周活跃</div>
             </div>
             <div class="active-users-item">
-              <div class="active-users-value">324</div>
+              <div class="active-users-value">{{ activeUserCounts.monthly }}</div>
               <div class="active-users-label">本月活跃</div>
             </div>
           </div>
@@ -503,6 +909,18 @@ onMounted(() => {
           </div>
         </div>
       </div>
+
+      <div v-if="isLoading" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>加载数据中，请稍候...</p>
+      </div>
+
+      <div v-else-if="errorMessage" class="error-container">
+        <p class="error-message">{{ errorMessage }}</p>
+        <button @click="loadData" class="retry-btn">重试</button>
+      </div>
+
+
     </div>
   </div>
 </template>
@@ -913,6 +1331,84 @@ onMounted(() => {
   margin-top: 2px;
 }
 
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid transparent;
+  border-top-color: var(--primary-color);
+  border-right-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 0.8s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-container {
+  text-align: center;
+  margin: 50px 0;
+}
+
+.error-message {
+  color: #e74c3c;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.retry-btn,
+.cloud-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.retry-btn:hover,
+.cloud-btn:hover {
+  background-color: #2980b9;
+}
+
+.cloud-function-section {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.cloud-function-section h2 {
+  margin-top: 0;
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.result-container {
+  margin-top: 20px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  padding: 15px;
+  overflow: auto;
+  max-height: 300px;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 @media (max-width: 1200px) {
   .stat-cards {
     grid-template-columns: repeat(2, 1fr);
@@ -931,5 +1427,11 @@ onMounted(() => {
   .aim-stats-content {
     grid-template-columns: 1fr;
   }
+}
+
+.aims-table-container {
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
 }
 </style>

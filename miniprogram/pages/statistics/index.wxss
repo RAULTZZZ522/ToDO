@@ -1,5 +1,5 @@
 page {
-  background-color: #f5f7fa;
+  background-color: #fffaf5;
 }
 
 .stats-container {
@@ -8,18 +8,25 @@ page {
 
 /* 统计卡片通用样式 */
 .stats-card {
-  background: #ffffff;
-  border-radius: 12rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
-  padding: 30rpx;
-  margin-bottom: 30rpx;
+  background-color: #ffffff;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 20rpx rgba(255, 180, 140, 0.08);
+  margin: 30rpx 20rpx;
+  padding: 30rpx 20rpx;
+  overflow: hidden;
 }
 
 .card-title {
-  font-size: 32rpx;
-  font-weight: 500;
-  color: #333;
+  font-size: 16px;
+  font-weight: bold;
+  color: #7d5a50;
   margin-bottom: 20rpx;
+}
+
+.card-subtitle {
+  font-size: 12px;
+  color: #b5917a;
+  margin-left: 10px;
 }
 
 /* 统计网格 */
@@ -27,6 +34,18 @@ page {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+}
+
+.stats-grid.single-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stats-grid.single-row .stat-item {
+  flex: 1;
+  text-align: center;
 }
 
 .stat-item {
@@ -38,14 +57,14 @@ page {
 .stat-value {
   display: block;
   font-size: 48rpx;
-  color: #ff6b6b;
+  color: #ff8f66;
   font-weight: 600;
   margin-bottom: 10rpx;
 }
 
 .stat-label {
   font-size: 24rpx;
-  color: #999;
+  color: #b5917a;
 }
 
 /* 卡片标题栏 */
@@ -64,18 +83,18 @@ page {
 }
 
 .date-arrow {
-  color: #ff6b6b;
+  color: #ff8f66;
   padding: 0 10rpx;
 }
 
 .current-date {
   margin: 0 10rpx;
-  color: #333;
+  color: #7d5a50;
 }
 
 /* 分享按钮 */
 .share-button {
-  background-color: #ff6b6b;
+  background-color: #ff8f66;
   color: white;
   font-size: 24rpx;
   padding: 10rpx 20rpx;
@@ -85,9 +104,10 @@ page {
 /* 标签选择器 */
 .tab-selector {
   display: flex;
-  background: #f2f2f2;
+  background: #fff0e6;
   border-radius: 8rpx;
   margin: 20rpx 0 30rpx;
+  padding: 4rpx;
 }
 
 .tab-item {
@@ -95,13 +115,17 @@ page {
   text-align: center;
   padding: 16rpx 0;
   font-size: 28rpx;
-  color: #666;
+  color: #b5917a;
+  border-radius: 6rpx;
+  margin: 0 4rpx;
+  transition: all 0.3s ease;
 }
 
 .tab-item.active {
-  background: #ff6b6b;
+  background: #ff8f66;
   color: white;
-  border-radius: 8rpx;
+  box-shadow: 0 2rpx 6rpx rgba(255, 143, 102, 0.3);
+  font-weight: 500;
 }
 
 /* 图表容器 */
@@ -116,9 +140,34 @@ canvas {
   height: 100% !important;
 }
 
+/* 图表提示 */
+.chart-tips {
+  text-align: center;
+  padding: 8px 0;
+  color: #b5917a;
+  font-size: 12px;
+  border-top: 1px dashed #ffe0cc;
+  margin-top: 10px;
+}
+
+/* 无数据提示 */
+.no-data-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  color: #b5917a;
+  font-size: 28rpx;
+}
+
 /* 查看记录按钮 */
 .view-records-btn {
-  background: #ff6b6b;
+  background: #ff8f66;
   color: white;
   padding: 20rpx 0;
   text-align: center;
@@ -138,7 +187,7 @@ canvas {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #666;
+  color: #b5917a;
   font-size: 28rpx;
 }
 
@@ -153,4 +202,264 @@ canvas {
   justify-content: center;
   align-items: center;
   z-index: 100;
+}
+
+/* 饼图容器美化 */
+.pie-chart-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px auto 20px;
+  position: relative;
+  height: 300px;
+  width: 300px;
+  padding: 0;
+  animation: fadeIn 0.8s ease;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4rpx 20rpx rgba(255, 180, 140, 0.08);
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+
+/* canvas元素的样式 */
+.pie-chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  margin: 0 auto;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+/* 图例美化 - 两列布局 */
+.pie-legend {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 15px 10px;
+  padding: 12px 15px;
+  justify-content: space-between;
+  background: #ffffff;
+  border-radius: 10px;
+  row-gap: 10px;
+  box-shadow: 0 2px 8px rgba(255, 180, 140, 0.08);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+  padding: 3px 8px;
+  border-radius: 20px;
+  width: 48%;
+  box-sizing: border-box;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.legend-item.active {
+  background: rgba(255, 200, 180, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(255, 180, 140, 0.1);
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.legend-label {
+  font-size: 12px;
+  color: #7d5a50;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.2px;
+  font-weight: 500;
+}
+
+/* 标题样式改进 */
+.pie-chart-title {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  color: #7d5a50;
+  margin-bottom: 15px;
+  letter-spacing: 0.5px;
+}
+
+/* 高亮状态文本样式 */
+.legend-item.active .legend-label {
+  font-weight: bold;
+  color: #ff8f66;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pie-legend .legend-item {
+  animation: fadeIn 0.3s ease;
+  animation-fill-mode: backwards;
+}
+
+/* 为每个图例项添加延迟 */
+.pie-legend .legend-item:nth-child(1) { animation-delay: 0.1s; }
+.pie-legend .legend-item:nth-child(2) { animation-delay: 0.2s; }
+.pie-legend .legend-item:nth-child(3) { animation-delay: 0.3s; }
+.pie-legend .legend-item:nth-child(4) { animation-delay: 0.4s; }
+.pie-legend .legend-item:nth-child(5) { animation-delay: 0.5s; }
+.pie-legend .legend-item:nth-child(6) { animation-delay: 0.6s; }
+
+/* 饼图标题美化 */
+.stats-card .card-header {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+}
+
+.top-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx;
+  margin: 20rpx;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 20rpx 0 rgba(0, 0, 0, 0.05);
+  background-color: #fff7f0;
+}
+
+.date-container {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #ffebdc;
+}
+
+.day-view-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10rpx;
+  border-radius: 10rpx;
+  background-color: #fff7f0;
+  box-shadow: 0 2rpx 8rpx rgba(255, 150, 100, 0.1);
+  margin: 0 5rpx;
+}
+
+.day-view-item.active {
+  background-color: #ffe8d9;
+}
+
+.time-distribute .tab {
+  margin-bottom: 20rpx;
+  display: flex;
+  justify-content: center;
+  background-color: #fffdfa;
+  border-radius: 10rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(255, 150, 100, 0.1);
+}
+
+.time-distribute .tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 15rpx 0;
+  font-size: 28rpx;
+  color: #8c8c8c;
+}
+
+.time-distribute .tab-item.active {
+  color: #ff8f66;
+  font-weight: bold;
+  position: relative;
+}
+
+.time-distribute .tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 25%;
+  width: 50%;
+  height: 6rpx;
+  background-color: #ff8f66;
+  border-radius: 3rpx;
+}
+
+.pie-legend .legend-item {
+  display: flex;
+  align-items: center;
+  margin: 10rpx 0;
+  padding: 10rpx;
+  border-radius: 8rpx;
+  transition: all 0.3s;
+}
+
+.pie-legend .legend-item.highlight {
+  background-color: rgba(255, 200, 180, 0.2);
+}
+
+.count-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx;
+  background-color: #fff7f0;
+  border-radius: 12rpx;
+  box-shadow: 0 4rpx 12rpx rgba(255, 160, 120, 0.08);
+  margin: 0 10rpx;
+}
+
+.count-title {
+  font-size: 26rpx;
+  color: #b98d76;
+  margin-bottom: 10rpx;
+}
+
+.count-value {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #ff8f66;
+}
+
+.aim-container {
+  margin: 20rpx;
+  padding: 20rpx;
+  background-color: #fff7f0;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 20rpx 0 rgba(0, 0, 0, 0.05);
+}
+
+.aim-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid #ffebdc;
+  margin-bottom: 20rpx;
+}
+
+.tips-container {
+  margin: 20rpx;
+  padding: 20rpx;
+  background-color: #fff7f0;
+  border-radius: 20rpx;
+  box-shadow: 0 4rpx 20rpx 0 rgba(0, 0, 0, 0.05);
+}
+
+.tips-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid #ffebdc;
+  margin-bottom: 20rpx;
 } 
