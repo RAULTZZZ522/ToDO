@@ -1,6 +1,6 @@
 <view class="stats-container">
   <!-- 累计专注统计 -->
-  <view class="stats-card">
+  <view class="stats-card compact-card">
     <view class="card-title">累计专注</view>
     <view class="stats-grid">
       <view class="stat-item">
@@ -19,7 +19,7 @@
   </view>
   
   <!-- 当日专注 -->
-  <view class="stats-card">
+  <view class="stats-card compact-card">
     <view class="card-header">
       <text class="card-title">当日专注</text>
       <view class="date-selector">
@@ -66,13 +66,13 @@
     
     <!-- 图表区域 -->
     <view class="chart-container">
-      <canvas canvas-id="columnCanvas" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"></canvas>
+      <canvas canvas-id="columnCanvas" id="columnCanvas" type="2d" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"></canvas>
       <view wx:if="{{chartLoading}}" class="loading-overlay">
         <text>加载中...</text>
       </view>
       
       <!-- 如果没有数据，显示提示 -->
-      <view wx:if="{{!distributionData || distributionData.length === 0 || !distributionData[0].minutes}}" class="no-data-tip">
+      <view wx:if="{{!distributionData || distributionData.length === 0 || noValidData}}" class="no-data-tip">
         <text>暂无{{distributionType === 'day' ? '日' : distributionType === 'week' ? '周' : '月'}}数据</text>
       </view>
     </view>

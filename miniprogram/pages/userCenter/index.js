@@ -15,12 +15,20 @@ Page({
 
   // 自动登录
   autoLogin: function () {
-    // 仅在本地已缓存用户信息时进行自动登录，其他情况等待用户主动授权
+    // 检查登录状态，如果没有userInfo或authSetting，则显示为未登录状态
     const userInfo = wx.getStorageSync('userInfo');
-    if (userInfo) {
+    const authSetting = wx.getStorageSync('authSetting');
+    
+    if (userInfo && authSetting && authSetting.userInfo) {
       this.setData({
         userInfo,
         hasUserInfo: true
+      });
+    } else {
+      // 确保清除登录状态
+      this.setData({
+        userInfo: null,
+        hasUserInfo: false
       });
     }
   },

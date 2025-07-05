@@ -107,6 +107,7 @@ Page({
     // 专注分布
     distributionType: 'day', // 'day', 'week', 'month'
     distributionData: [],
+    noValidData: false, // 是否没有有效数据
     
     // 界面控制
     loading: true,
@@ -228,7 +229,14 @@ Page({
     // 设置分布数据
     const distributionType = this.data.distributionType;
     const distributionData = mockData.distribution[distributionType] || [];
-    this.setData({ distributionData });
+    
+    // 计算是否所有数据都为0
+    const noValidData = distributionData.every(item => !item.minutes);
+    
+    this.setData({ 
+      distributionData,
+      noValidData
+    });
     
     // 绘制图表
     setTimeout(() => {
@@ -239,17 +247,32 @@ Page({
   // 简化版图表绘制函数
   drawChartSimple: function() {
     console.log('绘制图表', this.data.distributionType);
-    const { distributionData, distributionType } = this.data;
-    const ctx = wx.createCanvasContext('columnCanvas');
+    const { distributionData, distributionType, noValidData } = this.data;
     const width = this.data.canvasWidth;
     const height = this.data.canvasHeight;
     const padding = 30;
     
+    // 使用Canvas 2D API
+    const query = wx.createSelectorQuery();
+    query.select('#columnCanvas')
+      .fields({ node: true, size: true })
+      .exec((res) => {
+        if (res && res[0] && res[0].node) {
+          const canvas = res[0].node;
+          const ctx = canvas.getContext('2d');
+          
+          // 设置canvas实际大小
+          const dpr = wx.getWindowInfo().pixelRatio;
+          canvas.width = width * dpr;
+          canvas.height = height * dpr;
+          ctx.scale(dpr, dpr);
+    
     // 清空画布
     ctx.clearRect(0, 0, width, height);
     
-    if (!distributionData || distributionData.length === 0) {
-      ctx.draw();
+          // 检查是否有数据
+          if (!distributionData || distributionData.length === 0 || noValidData) {
+            // 没有有效数据，不绘制图表
       return;
     }
     
@@ -270,14 +293,14 @@ Page({
     
     // 绘制坐标轴
     ctx.beginPath();
-    ctx.setStrokeStyle('#cccccc');
+          ctx.strokeStyle = '#cccccc';
     ctx.moveTo(padding, height - padding);
     ctx.lineTo(width - padding, height - padding); // x轴
     ctx.stroke();
     
     // Y轴
     ctx.beginPath();
-    ctx.setStrokeStyle('#cccccc');
+          ctx.strokeStyle = '#cccccc';
     ctx.moveTo(padding, padding);
     ctx.lineTo(padding, height - padding);
     ctx.stroke();
@@ -290,15 +313,15 @@ Page({
       
       // 绘制柱子
       ctx.beginPath();
-      ctx.setFillStyle('#ff6b6b');
+            ctx.fillStyle = '#ff6b6b';
       ctx.rect(x, y, barWidth, barHeight);
       ctx.fill();
       
       // 绘制文本标签（根据不同类型调整显示策略）
       if (distributionType === 'week' || (distributionType === 'day' && barCount <= 12) || 
           (distributionType === 'month' && barCount <= 15)) {
-        ctx.setFontSize(10);
-        ctx.setFillStyle('#666666');
+              ctx.font = '10px sans-serif';
+              ctx.fillStyle = '#666666';
         const label = item.label;
         const textWidth = ctx.measureText(label).width || 10;
         
@@ -312,8 +335,8 @@ Page({
       
       // 显示数值
       if (item.minutes > 0) {
-        ctx.setFontSize(9);
-        ctx.setFillStyle('#666666');
+              ctx.font = '9px sans-serif';
+              ctx.fillStyle = '#666666';
         const value = item.minutes.toString();
         const valueWidth = ctx.measureText(value).width || 10;
         const valueX = x + (barWidth - valueWidth) / 2;
@@ -322,12 +345,13 @@ Page({
     });
     
     // 添加Y轴最大值标签
-    ctx.setFontSize(10);
-    ctx.setFillStyle('#666666');
+          ctx.font = '10px sans-serif';
+          ctx.fillStyle = '#666666';
     ctx.fillText(maxValue.toString(), padding - 15, padding + 10);
-    
-    // 绘制
-    ctx.draw();
+        } else {
+          console.error('获取不到canvas节点');
+        }
+      });
   },
   
   // 获取累计专注统计（保留云函数调用代码，但不实际执行）
@@ -421,8 +445,13 @@ Page({
     
     // 更新分布数据
     const distributionData = mockData.distribution[type] || [];
+    
+    // 计算是否所有数据都为0
+    const noValidData = distributionData.every(item => !item.minutes);
+    
     this.setData({ 
-      distributionData
+      distributionData,
+      noValidData
     });
     
     // 重新绘制图表
@@ -503,7 +532,7 @@ Page({
             
             // 设置canvas实际大小为正方形
             const size = 300;
-            const dpr = wx.getSystemInfoSync().pixelRatio;
+            const dpr = wx.getWindowInfo().pixelRatio;
             canvas.width = size * dpr;
             canvas.height = size * dpr;
             ctx.scale(dpr, dpr);
