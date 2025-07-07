@@ -61,7 +61,7 @@ async function ensureCollectionsExist() {
 }
 
 exports.main = async (event, context) => {
-  console.log('todoModel function called with event:', event);
+  console.log('todoModel function called with event:', JSON.stringify(event));
   const wxContext = cloud.getWXContext();
   const { type } = event;
   
@@ -140,6 +140,36 @@ exports.main = async (event, context) => {
         return await updateTomatoRecord(event, context);
       case 'getTomatoRecords':
         return await getTomatoRecords(event, context);
+      case 'getUnfinishedAimsCount':
+        console.log('处理getUnfinishedAimsCount请求，参数:', event);
+        try {
+          const unfinishedResult = await todoModel.getUnfinishedAimsCount(event, context);
+          console.log('getUnfinishedAimsCount处理结果:', unfinishedResult);
+          return unfinishedResult;
+        } catch (error) {
+          console.error('getUnfinishedAimsCount处理出错:', error);
+          return { code: -1, msg: '获取未完成目标数量失败', error: error.message };
+        }
+      case 'getCategoryStats':
+        console.log('处理getCategoryStats请求，参数:', event);
+        try {
+          const categoryStatsResult = await todoModel.getCategoryStats(event, context);
+          console.log('getCategoryStats处理结果:', categoryStatsResult);
+          return categoryStatsResult;
+        } catch (error) {
+          console.error('getCategoryStats处理出错:', error);
+          return { code: -1, msg: '获取分类统计数据失败', error: error.message };
+        }
+      case 'getPomodoroCategoryStats':
+        console.log('处理getPomodoroCategoryStats请求，参数:', event);
+        try {
+          const pomodoroCategoryStatsResult = await todoModel.getPomodoroCategoryStats(event, context);
+          console.log('getPomodoroCategoryStats处理结果:', pomodoroCategoryStatsResult);
+          return pomodoroCategoryStatsResult;
+        } catch (error) {
+          console.error('getPomodoroCategoryStats处理出错:', error);
+          return { code: -1, msg: '获取番茄钟分类统计数据失败', error: error.message };
+        }
       default:
         console.error('未知的操作类型:', type);
         return { code: -1, msg: '未知的操作类型: ' + type };
@@ -156,9 +186,10 @@ async function getPomodoroStats(event, context) {
   const OPENID = wxContext.OPENID;
   
   try {
-    // 获取用户的所有番茄钟记录
+    // 获取用户的所有已完成的番茄钟记录
     const result = await pomodoroCollection.where({
-      _openid: OPENID
+      _openid: OPENID,
+      completed: true
     }).get();
     
     const records = result.data;
@@ -244,17 +275,27 @@ async function getDailyPomodoroStats(event, context) {
 async function getPomodoroDistribution(event, context) {
   const wxContext = cloud.getWXContext();
   const OPENID = wxContext.OPENID;
-  const { type } = event; // 'day', 'week', 'month'
+  
+  // 兼容两种参数名称
+  let distributionType = event.distributionType || event.type;
+  // 如果两个参数都没有，默认使用day
+  if (!distributionType) {
+    distributionType = 'day';
+  }
+  
+  console.log('获取番茄钟时间分布, 类型:', distributionType, 'OPENID:', OPENID);
   
   try {
     let distribution = [];
     const now = new Date();
     
-    if (type === 'day') {
+    if (distributionType === 'day') {
       // 按小时统计当天数据
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
+      
+      console.log('日视图时间范围:', today, '到', tomorrow);
       
       // 初始化24小时的数据
       for (let i = 0; i < 24; i++) {
@@ -267,8 +308,11 @@ async function getPomodoroDistribution(event, context) {
       // 查询当天的番茄钟记录
       const result = await pomodoroCollection.where({
         _openid: OPENID,
-        startTime: _.gte(today.getTime()).and(_.lt(tomorrow.getTime()))
+        startTime: _.gte(today.getTime()).and(_.lt(tomorrow.getTime())),
+        completed: true // 只统计已完成的番茄钟
       }).get();
+      
+      console.log('查询到的日视图番茄钟记录数:', result.data.length);
       
       // 按小时统计
       result.data.forEach(item => {
@@ -276,7 +320,7 @@ async function getPomodoroDistribution(event, context) {
         const duration = item.duration || 0;
         distribution[hour].minutes += duration;
       });
-    } else if (type === 'week') {
+    } else if (distributionType === 'week') {
       // 计算本周的起始日期（周一为起始）
       const dayOfWeek = now.getDay() || 7; // 将0（周日）转换为7
       const weekStart = new Date(now);
@@ -285,6 +329,8 @@ async function getPomodoroDistribution(event, context) {
       
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 7);
+      
+      console.log('周视图时间范围:', weekStart, '到', weekEnd);
       
       // 初始化周一到周日的数据
       const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
@@ -298,8 +344,11 @@ async function getPomodoroDistribution(event, context) {
       // 查询本周的番茄钟记录
       const result = await pomodoroCollection.where({
         _openid: OPENID,
-        startTime: _.gte(weekStart.getTime()).and(_.lt(weekEnd.getTime()))
+        startTime: _.gte(weekStart.getTime()).and(_.lt(weekEnd.getTime())),
+        completed: true // 只统计已完成的番茄钟
       }).get();
+      
+      console.log('查询到的周视图番茄钟记录数:', result.data.length);
       
       // 按日期统计
       result.data.forEach(item => {
@@ -307,11 +356,17 @@ async function getPomodoroDistribution(event, context) {
         const duration = item.duration || 0;
         distribution[day-1].minutes += duration;
       });
-    } else if (type === 'month') {
+    } else if (distributionType === 'month') {
       // 计算本月的天数
       const year = now.getFullYear();
       const month = now.getMonth();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
+      
+      // 计算本月的起始和结束时间
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 1);
+      
+      console.log('月视图时间范围:', monthStart, '到', monthEnd, '本月天数:', daysInMonth);
       
       // 初始化本月每一天的数据
       for (let i = 1; i <= daysInMonth; i++) {
@@ -321,15 +376,14 @@ async function getPomodoroDistribution(event, context) {
         });
       }
       
-      // 计算本月的起始和结束时间
-      const monthStart = new Date(year, month, 1);
-      const monthEnd = new Date(year, month + 1, 1);
-      
       // 查询本月的番茄钟记录
       const result = await pomodoroCollection.where({
         _openid: OPENID,
-        startTime: _.gte(monthStart.getTime()).and(_.lt(monthEnd.getTime()))
+        startTime: _.gte(monthStart.getTime()).and(_.lt(monthEnd.getTime())),
+        completed: true // 只统计已完成的番茄钟
       }).get();
+      
+      console.log('查询到的月视图番茄钟记录数:', result.data.length);
       
       // 按日期统计
       result.data.forEach(item => {
@@ -339,13 +393,15 @@ async function getPomodoroDistribution(event, context) {
       });
     }
     
+    console.log('生成的分布数据:', distribution);
+    
     return {
       code: 0,
       data: distribution
     };
   } catch (err) {
-    console.error('Failed to get pomodoro distribution:', err);
-    return { code: -1, msg: '获取分布数据失败', error: err };
+    console.error('获取番茄钟分布数据失败:', err);
+    return { code: -1, msg: '获取分布数据失败', error: err.message };
   }
 }
 
