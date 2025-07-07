@@ -5,18 +5,18 @@
   </view>
 
   <!-- 目标列表 -->
-  <view class="aim-list">
+<view class="aim-list">
     <view wx:if="{{aims.length === 0}}" class="empty-tip">
       <text>暂无目标，点击"添加目标"创建新目标</text>
     </view>
     
-    <view class="aim-item" wx:for="{{aims}}" wx:key="_id">
-      <view class="aim-header">
+  <view class="aim-item" wx:for="{{aims}}" wx:key="_id">
+    <view class="aim-header">
         <view class="aim-title-row">
           <text class="aim-title">{{item.title}}</text>
           <text class="aim-category">{{item.category}}</text>
         </view>
-        <text class="aim-desc">{{item.description}}</text>
+      <text class="aim-desc">{{item.description}}</text>
       </view>
       
       <view class="aim-info">

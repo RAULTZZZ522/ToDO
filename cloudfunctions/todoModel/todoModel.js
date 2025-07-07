@@ -10,6 +10,8 @@
 //   completed: Boolean,    // 是否完成
 //   category: String,      // 类别
 //   tomatoDuration: Number // 番茄钟时长（分钟）
+//   tomatoCount: Number,   // 已完成的番茄钟数量
+//   tomatoTotalTime: Number // 总番茄钟时间（分钟）
 // }
 
 // aim对象（目标）
@@ -87,7 +89,9 @@ exports.addTodo = async (event, context) => {
         updateTime: now,
         completed: false,
         category: category || '学习',
-        tomatoDuration: tomatoDuration || 25
+        tomatoDuration: tomatoDuration || 25,
+        tomatoCount: 0, // 初始化为0
+        tomatoTotalTime: 0 // 初始化为0
       }
     });
     
@@ -116,7 +120,9 @@ exports.updateTodo = async (event, context) => {
     importance, 
     completed, 
     category,
-    tomatoDuration
+    tomatoDuration,
+    tomatoCount,
+    tomatoTotalTime
   } = event;
   
   if (!id) {
@@ -135,6 +141,28 @@ exports.updateTodo = async (event, context) => {
     if (completed !== undefined) updateData.completed = completed;
     if (category !== undefined) updateData.category = category;
     if (tomatoDuration !== undefined) updateData.tomatoDuration = tomatoDuration;
+    
+    // 处理番茄钟计数和总时长
+    if (tomatoCount !== undefined) {
+      if (typeof tomatoCount === 'object' && tomatoCount._inc) {
+        // 如果是增量操作
+        updateData.tomatoCount = _.inc(tomatoCount._inc);
+      } else {
+        // 如果是直接设置值
+        updateData.tomatoCount = tomatoCount;
+      }
+    }
+    
+    if (tomatoTotalTime !== undefined) {
+      if (typeof tomatoTotalTime === 'object' && tomatoTotalTime._inc) {
+        // 如果是增量操作
+        updateData.tomatoTotalTime = _.inc(tomatoTotalTime._inc);
+      } else {
+        // 如果是直接设置值
+        updateData.tomatoTotalTime = tomatoTotalTime;
+      }
+    }
+    
     updateData.updateTime = db.serverDate();
     
     await todosCollection.doc(id).update({

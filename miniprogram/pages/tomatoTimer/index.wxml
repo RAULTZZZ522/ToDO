@@ -53,6 +53,10 @@ module.exports = {
     <!-- 白色圆圈 -->
     <view class="timer-circle">
       <view class="timer-content">
+        <view class="tomato-counter">
+          <text class="tomato-icon">⏱</text>
+          <text class="tomato-count">0/1</text>
+        </view>
         <view class="time-display">{{timeUtil.formatTime(timeLeft)}}</view>
       </view>
     </view>
@@ -61,19 +65,18 @@ module.exports = {
   <!-- 控制按钮 -->
   <view class="control-area">
     <button class="btn stop-btn" bindtap="onStop">
-      <view class="stop-icon">■</view>
       <text>停止</text>
     </button>
     
     <button class="btn pause-btn" bindtap="onPause">
-      <view class="pause-icon">{{paused ? '▶' : '⏸'}}</view>
-      <text>{{paused ? '继续' : '暂停'}}</text>
+      <text class="pause-icon">{{paused ? '' : ''}}</text>
+      <text>{{paused ? '暂停' : '暂停'}}</text>
     </button>
   </view>
   
   <!-- 完成按钮 -->
   <button class="finish-btn" bindtap="onFinish">
-    <view class="check-icon">✓</view>
+    <text class="check-icon">✓</text>
     <text>立即完成</text>
   </button>
   

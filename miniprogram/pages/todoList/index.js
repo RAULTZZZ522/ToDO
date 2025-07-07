@@ -120,8 +120,24 @@ Page({
   // 开始番茄钟
   startTomato: function(e) {
     const id = e.currentTarget.dataset.id;
+    if (!id) {
+      console.error('无法获取任务ID');
+      wx.showToast({
+        title: '无法获取任务ID',
+        icon: 'none'
+      });
+      return;
+    }
+    
     const todo = this.data.todos.find(t => t._id === id);
-    if (!todo) return;
+    if (!todo) {
+      console.error('无法找到对应的任务');
+      wx.showToast({
+        title: '无法找到对应的任务',
+        icon: 'none'
+      });
+      return;
+    }
     
     console.log('开始番茄钟，当前todo:', todo);
     
@@ -132,18 +148,22 @@ Page({
     });
     
     // 跳转到番茄钟页面
-    const title = encodeURIComponent(todo.title);
+    const title = encodeURIComponent(todo.title || '未命名任务');
     const duration = todo.tomatoDuration || 25;
     const category = encodeURIComponent(todo.category || '');
     
-    console.log(`跳转到番茄钟页面: /pages/tomatoTimer/index?title=${title}&duration=${duration}&id=${id}&category=${category}`);
+    const url = `/pages/tomatoTimer/index?title=${title}&duration=${duration}&id=${id}&category=${category}`;
+    console.log(`跳转到番茄钟页面: ${url}`);
     
     wx.navigateTo({
-      url: `/pages/tomatoTimer/index?title=${title}&duration=${duration}&id=${id}&category=${category}`,
+      url: url,
+      success: function() {
+        console.log('成功跳转到番茄钟页面');
+      },
       fail: function(err) {
         console.error('跳转番茄钟页面失败:', err);
         wx.showToast({
-          title: '跳转失败: ' + err.errMsg,
+          title: '跳转失败: ' + (err.errMsg || JSON.stringify(err)),
           icon: 'none'
         });
       }
