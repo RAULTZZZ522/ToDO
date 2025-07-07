@@ -17,6 +17,9 @@ App({
         env: this.globalData.env,
         traceUser: true,
       });
+
+      // 初始化数据库集合
+      this.initDatabase();
     }
 
     // 检查登录状态
@@ -34,5 +37,25 @@ App({
     } else {
       console.log('用户未登录');
     }
+  },
+
+  // 初始化数据库集合
+  initDatabase: function() {
+    const db = wx.cloud.database();
+    
+    // 检查users集合是否存在，如果不存在会自动创建
+    console.log('正在检查数据库集合...');
+    wx.cloud.callFunction({
+      name: 'login',
+      data: {
+        checkDb: true
+      },
+      success: res => {
+        console.log('数据库初始化成功', res.result);
+      },
+      fail: err => {
+        console.error('数据库初始化失败', err);
+      }
+    });
   }
 });

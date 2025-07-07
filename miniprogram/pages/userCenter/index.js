@@ -39,21 +39,29 @@ Page({
       desc: '用于完善用户资料',
       success: (res) => {
         const userInfo = res.userInfo;
+        console.log('获取到的用户信息:', userInfo);
 
         // 调用微信登录获取openid
         wx.login({
           success: (loginRes) => {
             const code = loginRes.code;
+            console.log('获取到的登录code:', code);
 
-            // 调用云函数登录，获取openid
+            // 调用云函数登录，获取openid并将用户信息存入云数据库
             wx.cloud.callFunction({
               name: 'login',
-              data: { code },
+              data: { 
+                code,
+                wxUserInfo: userInfo // 改用wxUserInfo名称以区分云函数上下文的userInfo
+              },
               success: res => {
+                console.log('云函数调用成功，返回:', res.result);
+                
                 // 合并用户信息
                 const userData = {
                   ...userInfo,
-                  openid: res.result.openid
+                  openid: res.result.openid,
+                  role: res.result.role || 'common'
                 };
 
                 // 保存到本地
