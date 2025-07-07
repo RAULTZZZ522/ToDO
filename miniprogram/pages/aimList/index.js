@@ -1,7 +1,7 @@
 Page({
   data: {
     aims: [],
-    categories: ['学习', '工作', '健身', '爱好','生活'],
+    categories: ['学习', '工作', '健身', '爱好', '生活'],
     showAddModal: false,
     newAim: {
       title: '',
@@ -17,14 +17,14 @@ Page({
     currentAimId: null
   },
 
-  onLoad: function() {
+  onLoad: function () {
     this.getAimList();
     this.getTodoList().catch(err => {
       console.error('加载日程失败:', err);
     });
   },
 
-  onShow: function() {
+  onShow: function () {
     this.getAimList();
     this.getTodoList().catch(err => {
       console.error('刷新日程失败:', err);
@@ -32,13 +32,13 @@ Page({
   },
 
   // 获取目标列表
-  getAimList: function() {
+  getAimList: function () {
     wx.showLoading({
       title: '加载中',
     });
-    
+
     console.log('正在调用云函数 getAims...');
-    
+
     wx.cloud.callFunction({
       name: 'todoModel',
       data: {
@@ -46,7 +46,7 @@ Page({
       }
     }).then(res => {
       console.log('云函数 getAims 返回结果:', res);
-      
+
       if (res.result && res.result.code === 0) {
         // 格式化日期并计算剩余天数
         const aims = res.result.data.map(aim => {
@@ -54,7 +54,7 @@ Page({
           if (aim.deadline) {
             const deadline = new Date(aim.deadline);
             aim.formattedDeadline = `${deadline.getFullYear()}-${String(deadline.getMonth() + 1).padStart(2, '0')}-${String(deadline.getDate()).padStart(2, '0')}`;
-            
+
             // 计算剩余天数
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -64,10 +64,10 @@ Page({
             aim.formattedDeadline = '无截止日期';
             aim.daysLeft = null;
           }
-          
+
           return aim;
         });
-        
+
         this.setData({
           aims: aims
         });
@@ -88,11 +88,11 @@ Page({
       });
     });
   },
-  
+
   // 获取日程列表（用于关联）
-  getTodoList: function() {
+  getTodoList: function () {
     console.log('正在调用云函数 getTodos...');
-    
+
     return new Promise((resolve, reject) => {
       wx.cloud.callFunction({
         name: 'todoModel',
@@ -101,11 +101,11 @@ Page({
         }
       }).then(res => {
         console.log('云函数 getTodos 返回结果:', res);
-        
+
         if (res.result && res.result.code === 0) {
           const todos = res.result.data || [];
           console.log('获取到的日程列表:', todos);
-          
+
           this.setData({
             todos: todos
           }, () => {
@@ -121,9 +121,14 @@ Page({
       });
     });
   },
-  
+
   // 显示添加目标模态框
-  showAddModal: function() {
+  showAddModal: function () {
+    // 先立即清空选中状态，避免旧数据残留
+    this.setData({
+      selectedTodoIds: []
+    });
+
     // 刷新日程列表，确保有最新数据
     this.getTodoList().then(() => {
       this.setData({
@@ -135,8 +140,7 @@ Page({
           totalTime: 60,
           deadline: '',
           relatedTodos: []
-        },
-        selectedTodoIds: []
+        }
       });
     }).catch(err => {
       console.error('获取日程列表失败:', err);
@@ -146,44 +150,46 @@ Page({
       });
     });
   },
-  
+
   // 隐藏添加目标模态框
-  hideAddModal: function() {
+  hideAddModal: function () {
     this.setData({
-      showAddModal: false
+      showAddModal: false,
+      selectedTodoIds: []
     });
   },
-  
+
   // 表单输入处理
-  onInputChange: function(e) {
+  onInputChange: function (e) {
     const { field } = e.currentTarget.dataset;
     const { value } = e.detail;
-    
+
     this.setData({
       [`newAim.${field}`]: value
     });
   },
-  
+
   // 处理日期选择
-  onDateChange: function(e) {
+  onDateChange: function (e) {
     this.setData({
       'newAim.deadline': e.detail.value
     });
   },
-  
+
   // 处理类别选择
-  onCategoryChange: function(e) {
+  onCategoryChange: function (e) {
     this.setData({
       'newAim.category': this.data.categories[e.detail.value]
     });
   },
-  
+
   // 处理相关日程选择
-  onTodoCheckboxChange: function(e) {
+  onTodoCheckboxChange: function (e) {
     console.log('checkbox change 事件触发，value:', e.detail.value);
-    
-    const selectedTodoIds = e.detail.value;
-    
+
+    // 利用 Set 去重，防止出现重复 ID
+    const selectedTodoIds = [...new Set(e.detail.value)];
+
     // 根据当前显示的模态框类型，更新不同的数据
     if (this.data.showAddModal) {
       // 添加目标模态框中的选择
@@ -201,11 +207,12 @@ Page({
       console.log('关联日程时选中的日程IDs:', selectedTodoIds);
     }
   },
-  
+
   // 添加新目标
-  addAim: function() {
+  addAim: function () {
     const { title, description, category, totalTime, deadline, relatedTodos } = this.data.newAim;
-    
+    const uniqueRelated = Array.isArray(relatedTodos) ? [...new Set(relatedTodos)] : [];
+
     if (!title) {
       wx.showToast({
         title: '请输入目标标题',
@@ -213,30 +220,30 @@ Page({
       });
       return;
     }
-    
+
     wx.showLoading({
       title: '添加中',
     });
-    
+
     const params = {
       type: 'addAim',
       title,
       description,
       category,
       totalTime: Number(totalTime),
-      relatedTodos,
+      relatedTodos: uniqueRelated,
       deadline: deadline || null
     };
-    
+
     console.log('正在调用云函数 addAim，参数:', params);
-    
+
     wx.cloud.callFunction({
       name: 'todoModel',
       data: params
     }).then(res => {
       wx.hideLoading();
       console.log('云函数 addAim 返回结果:', res);
-      
+
       if (res.result && res.result.code === 0) {
         wx.showToast({
           title: '添加成功',
@@ -258,15 +265,15 @@ Page({
       });
     });
   },
-  
+
   // 更新目标进度
-  updateProgress: function(e) {
+  updateProgress: function (e) {
     const { id, progress } = e.currentTarget.dataset;
-    
+
     wx.showLoading({
       title: '更新中',
     });
-    
+
     wx.cloud.callFunction({
       name: 'todoModel',
       data: {
@@ -296,11 +303,11 @@ Page({
       });
     });
   },
-  
+
   // 删除目标
-  deleteAim: function(e) {
+  deleteAim: function (e) {
     const { id } = e.currentTarget.dataset;
-    
+
     wx.showModal({
       title: '确认删除',
       content: '确定要删除这个目标吗？',
@@ -309,7 +316,7 @@ Page({
           wx.showLoading({
             title: '删除中',
           });
-          
+
           wx.cloud.callFunction({
             name: 'todoModel',
             data: {
@@ -341,14 +348,14 @@ Page({
       }
     });
   },
-  
+
   // 手动调整进度
-  adjustProgress: function(e) {
+  adjustProgress: function (e) {
     const { id } = e.currentTarget.dataset;
     const aim = this.data.aims.find(a => a._id === id);
-    
+
     if (!aim) return;
-    
+
     wx.showActionSheet({
       itemList: ['0%', '25%', '50%', '75%', '100%', '根据番茄钟自动计算'],
       success: (res) => {
@@ -358,7 +365,7 @@ Page({
         } else {
           const progressValues = [0, 25, 50, 75, 100];
           const newProgress = progressValues[res.tapIndex];
-          
+
           wx.cloud.callFunction({
             name: 'todoModel',
             data: {
@@ -373,18 +380,43 @@ Page({
       }
     });
   },
-  
+
   // 更新目标关联的日程
-  updateAimRelatedTodos: function(e) {
+  updateAimRelatedTodos: function (e) {
     const { id } = e.currentTarget.dataset;
     console.log('打开关联日程模态框，目标ID:', id);
-    
-    // 获取目标信息
+
+    const localAim = (this.data.aims || []).find(a => a._id === id);
+
+    if (localAim) {
+      // 规范化 relatedTodos，确保为数组
+      let relatedTodos = [];
+      if (Array.isArray(localAim.relatedTodos)) {
+        relatedTodos = localAim.relatedTodos;
+      } else if (typeof localAim.relatedTodos === 'string') {
+        try {
+          const parsed = JSON.parse(localAim.relatedTodos);
+          relatedTodos = Array.isArray(parsed) ? parsed : [localAim.relatedTodos];
+        } catch (err) {
+          relatedTodos = [localAim.relatedTodos];
+        }
+      }
+
+      console.log('使用本地aim数据打开关联日程, relatedTodos:', relatedTodos);
+
+      this.setData({
+        selectedTodoIds: relatedTodos,
+        currentAimId: id,
+        showTodoSelectModal: true
+      });
+      return;
+    }
+
+    // 本地没有，退回云端查询，确保兼容旧数据
     wx.showLoading({
       title: '加载中',
     });
-    
-    // 查询目标详情
+
     wx.cloud.callFunction({
       name: 'todoModel',
       data: {
@@ -393,7 +425,7 @@ Page({
     }).then(res => {
       if (res.result && res.result.code === 0) {
         const aim = res.result.data.find(a => a._id === id);
-        
+
         if (!aim) {
           wx.hideLoading();
           console.error('未找到目标:', id);
@@ -403,16 +435,16 @@ Page({
           });
           return;
         }
-        
+
         console.log('目标详情:', aim);
         console.log('目标原有关联的日程IDs:', aim.relatedTodos || []);
-        
+
         // 获取所有日程，确保数据是最新的
         this.getTodoList().then(todos => {
           wx.hideLoading();
-          
+
           console.log('获取到的所有日程:', todos);
-          
+
           // 确保relatedTodos是数组
           let relatedTodos = [];
           if (aim.relatedTodos) {
@@ -428,23 +460,16 @@ Page({
               }
             }
           }
-          
+
           console.log('处理后的关联日程IDs:', relatedTodos);
-          
-          // 先清空选中状态，再设置，确保视图正确更新
+
+          // 直接设置 showTodoSelectModal 和 selectedTodoIds，避免延迟和闪烁
           this.setData({
-            selectedTodoIds: [],
+            selectedTodoIds: relatedTodos,
             currentAimId: id,
             showTodoSelectModal: true
           }, () => {
-            // 延迟设置选中状态，确保视图已经渲染
-            setTimeout(() => {
-              this.setData({
-                selectedTodoIds: relatedTodos
-              }, () => {
-                console.log('设置完成，当前选中的日程IDs:', this.data.selectedTodoIds);
-              });
-            }, 100);
+            console.log('设置完成，当前选中的日程IDs:', this.data.selectedTodoIds);
           });
         }).catch(err => {
           wx.hideLoading();
@@ -471,15 +496,15 @@ Page({
       });
     });
   },
-  
+
   // 处理日程项点击事件
-  toggleTodoItem: function(e) {
+  toggleTodoItem: function (e) {
     const id = e.currentTarget.dataset.id;
     console.log('点击了日程项，ID:', id);
-    
+
     // 获取当前选中的IDs
     let selectedTodoIds = [...this.data.selectedTodoIds];
-    
+
     // 切换选中状态
     if (selectedTodoIds.includes(id)) {
       // 如果已经选中，则移除
@@ -490,9 +515,9 @@ Page({
       selectedTodoIds.push(id);
       console.log('添加ID:', id);
     }
-    
+
     console.log('更新后的selectedTodoIds:', selectedTodoIds);
-    
+
     // 更新选中状态
     this.setData({
       selectedTodoIds: selectedTodoIds
@@ -501,26 +526,27 @@ Page({
       console.log('setData回调中的selectedTodoIds:', this.data.selectedTodoIds);
     });
   },
-  
+
   // 隐藏日程选择模态框
-  hideTodoSelectModal: function() {
+  hideTodoSelectModal: function () {
     console.log('关闭关联日程模态框');
     this.setData({
       showTodoSelectModal: false,
-      currentAimId: null
+      currentAimId: null,
+      selectedTodoIds: []
     });
   },
-  
+
   // 关联日程功能处理函数
-  toggleTodo: function(e) {
+  toggleTodo: function (e) {
     const id = e.currentTarget.dataset.id;
     console.log('关联日程模态框中点击了复选框，ID:', id);
-    
+
     // 获取当前选中的IDs，确保它是一个数组
     let selectedTodoIds = Array.isArray(this.data.selectedTodoIds) ? [...this.data.selectedTodoIds] : [];
-    
+
     console.log('当前选中的IDs:', selectedTodoIds);
-    
+
     // 切换选中状态
     const index = selectedTodoIds.findIndex(item => item === id);
     if (index > -1) {
@@ -532,9 +558,9 @@ Page({
       selectedTodoIds.push(id);
       console.log('添加ID:', id);
     }
-    
+
     console.log('更新后的selectedTodoIds:', selectedTodoIds);
-    
+
     // 更新选中状态
     this.setData({
       selectedTodoIds: selectedTodoIds
@@ -542,15 +568,15 @@ Page({
       console.log('setData回调中的selectedTodoIds:', this.data.selectedTodoIds);
     });
   },
-  
+
   // 添加目标模态框中的复选框点击事件
-  toggleAddTodo: function(e) {
+  toggleAddTodo: function (e) {
     const id = e.currentTarget.dataset.id;
     console.log('添加目标模态框中点击了复选框，ID:', id);
-    
+
     // 获取当前选中的IDs，确保它是一个数组
     let selectedTodoIds = Array.isArray(this.data.selectedTodoIds) ? [...this.data.selectedTodoIds] : [];
-    
+
     // 切换选中状态
     const index = selectedTodoIds.findIndex(item => item === id);
     if (index > -1) {
@@ -562,9 +588,9 @@ Page({
       selectedTodoIds.push(id);
       console.log('添加ID:', id);
     }
-    
+
     console.log('更新后的selectedTodoIds:', selectedTodoIds);
-    
+
     // 更新选中状态以及newAim中的relatedTodos
     this.setData({
       selectedTodoIds: selectedTodoIds,
@@ -574,24 +600,26 @@ Page({
       console.log('setData回调中的newAim.relatedTodos:', this.data.newAim.relatedTodos);
     });
   },
-  
+
   // 确认更新关联日程
-  confirmUpdateRelatedTodos: function() {
-    const { currentAimId, selectedTodoIds } = this.data;
-    
+  confirmUpdateRelatedTodos: function () {
+    const { currentAimId } = this.data;
+    // 去重
+    const selectedTodoIds = [...new Set(this.data.selectedTodoIds)];
+
     console.log('确认关联日程，当前目标ID:', currentAimId);
     console.log('选中的日程IDs:', selectedTodoIds);
-    
+
     if (!currentAimId) {
       console.error('未找到当前目标ID');
       this.hideTodoSelectModal();
       return;
     }
-    
+
     // 获取处理后的todoIds，确保它是数组
     const validTodoIds = Array.isArray(selectedTodoIds) ? selectedTodoIds : [];
     console.log('处理后的todoIds:', validTodoIds);
-    
+
     // 显示确认对话框
     wx.showModal({
       title: '确认关联',
@@ -602,7 +630,7 @@ Page({
           wx.showLoading({
             title: '关联中',
           });
-          
+
           // 使用更可靠的方法更新关联
           wx.cloud.callFunction({
             name: 'todoModel',
@@ -614,20 +642,20 @@ Page({
           }).then(res => {
             wx.hideLoading();
             console.log('关联日程云函数返回结果:', res);
-            
+
             if (res.result && res.result.code === 0) {
               wx.showToast({
                 title: '关联成功',
                 icon: 'success',
                 duration: 2000
               });
-              
+
               // 关闭模态框
               this.hideTodoSelectModal();
-              
+
               // 刷新目标列表
               this.getAimList();
-              
+
               // 如果有关联日程，尝试刷新进度
               if (validTodoIds.length > 0) {
                 // 给一定延迟确保数据库已更新
@@ -659,17 +687,17 @@ Page({
       }
     });
   },
-  
+
   // 刷新目标进度（根据番茄钟记录自动计算）
-  refreshAimProgress: function(e) {
+  refreshAimProgress: function (e) {
     // 支持事件对象或直接传入ID
     const aimId = e.currentTarget ? e.currentTarget.dataset.id : e;
     console.log('开始刷新目标进度，aimId:', aimId);
-    
+
     wx.showLoading({
       title: '计算进度中',
     });
-    
+
     wx.cloud.callFunction({
       name: 'todoModel',
       data: {
@@ -679,14 +707,14 @@ Page({
     }).then(progressRes => {
       wx.hideLoading();
       console.log('刷新进度云函数返回结果:', progressRes);
-      
+
       if (progressRes.result && progressRes.result.code === 0) {
         wx.showToast({
           title: '进度已更新',
           icon: 'success',
           duration: 2000
         });
-        
+
         // 刷新目标列表
         this.getAimList();
       } else {
@@ -707,15 +735,15 @@ Page({
       });
     });
   },
-  
+
   // 处理复选框点击事件
-  onCheckboxItemTap: function(e) {
+  onCheckboxItemTap: function (e) {
     const id = e.currentTarget.dataset.id;
     console.log('点击了复选框项，ID:', id);
-    
+
     // 获取当前选中的IDs
     let selectedTodoIds = [...this.data.selectedTodoIds];
-    
+
     // 切换选中状态
     if (selectedTodoIds.includes(id)) {
       // 如果已经选中，则移除
@@ -724,7 +752,7 @@ Page({
       // 如果未选中，则添加
       selectedTodoIds.push(id);
     }
-    
+
     // 根据当前显示的模态框类型，更新不同的数据
     if (this.data.showAddModal) {
       // 添加目标模态框中的选择
@@ -741,24 +769,24 @@ Page({
       console.log('关联日程时选中的日程IDs:', selectedTodoIds);
     }
   },
-  
+
   // 处理关联日程模态框中的复选框变化事件
-  handleTodoCheckboxChange: function(e) {
+  handleTodoCheckboxChange: function (e) {
     const selectedIds = e.detail.value;
     console.log('关联日程复选框变化，选中的IDs:', selectedIds);
-    
+
     this.setData({
       selectedTodoIds: selectedIds
     }, () => {
       console.log('更新后的selectedTodoIds:', this.data.selectedTodoIds);
     });
   },
-  
+
   // 处理添加目标模态框中的复选框变化事件
-  handleAddTodoCheckboxChange: function(e) {
+  handleAddTodoCheckboxChange: function (e) {
     const selectedIds = e.detail.value;
     console.log('添加目标复选框变化，选中的IDs:', selectedIds);
-    
+
     this.setData({
       selectedTodoIds: selectedIds,
       'newAim.relatedTodos': selectedIds
@@ -767,15 +795,15 @@ Page({
       console.log('更新后的newAim.relatedTodos:', this.data.newAim.relatedTodos);
     });
   },
-  
+
   // 检查目标的关联日程
-  checkAimRelatedTodos: function(aimId) {
+  checkAimRelatedTodos: function (aimId) {
     console.log('检查目标关联日程，aimId:', aimId);
-    
+
     wx.showLoading({
       title: '检查中',
     });
-    
+
     // 先获取目标信息
     wx.cloud.callFunction({
       name: 'todoModel',
@@ -785,21 +813,21 @@ Page({
     }).then(res => {
       if (res.result && res.result.code === 0) {
         const aim = res.result.data.find(a => a._id === aimId);
-        
+
         if (aim) {
           console.log('目标信息:', aim);
           console.log('关联日程IDs:', aim.relatedTodos || []);
-          
+
           // 如果有关联日程，检查这些日程
           if (aim.relatedTodos && aim.relatedTodos.length > 0) {
             // 获取所有日程
             this.getTodoList().then(todos => {
               console.log('所有日程:', todos);
-              
+
               // 找出关联的日程
               const relatedTodos = todos.filter(todo => aim.relatedTodos.includes(todo._id));
               console.log('关联的日程:', relatedTodos);
-              
+
               wx.hideLoading();
               wx.showModal({
                 title: '关联日程检查结果',
@@ -838,15 +866,15 @@ Page({
       });
     });
   },
-  
+
   // 检查番茄钟记录
-  checkTomatoRecords: function(aimId) {
+  checkTomatoRecords: function (aimId) {
     console.log('检查番茄钟记录，aimId:', aimId);
-    
+
     wx.showLoading({
       title: '检查中',
     });
-    
+
     // 先获取目标信息
     wx.cloud.callFunction({
       name: 'todoModel',
@@ -856,16 +884,16 @@ Page({
     }).then(res => {
       if (res.result && res.result.code === 0) {
         const aim = res.result.data.find(a => a._id === aimId);
-        
+
         if (aim) {
           console.log('目标信息:', aim);
           console.log('关联日程IDs:', aim.relatedTodos || []);
-          
+
           // 如果有关联日程，检查这些日程的番茄钟记录
           if (aim.relatedTodos && aim.relatedTodos.length > 0) {
             // 获取所有关联日程的番茄钟记录
             const todoId = aim.relatedTodos[0]; // 先检查第一个关联日程
-            
+
             wx.cloud.callFunction({
               name: 'todoModel',
               data: {
@@ -874,17 +902,17 @@ Page({
               }
             }).then(recordRes => {
               wx.hideLoading();
-              
+
               if (recordRes.result && recordRes.result.code === 0) {
                 const records = recordRes.result.data;
                 console.log(`日程 ${todoId} 的番茄钟记录:`, records);
-                
+
                 if (records.length > 0) {
                   let totalMinutes = 0;
                   records.forEach(record => {
                     totalMinutes += record.duration || 0;
                   });
-                  
+
                   wx.showModal({
                     title: '番茄钟记录检查结果',
                     content: `找到 ${records.length} 条番茄钟记录，总时长 ${totalMinutes} 分钟。`,
@@ -942,15 +970,15 @@ Page({
       });
     });
   },
-  
+
   // 手动设置目标进度
-  setAimProgress: function(aimId, progress) {
+  setAimProgress: function (aimId, progress) {
     console.log('手动设置目标进度，aimId:', aimId, 'progress:', progress);
-    
+
     wx.showLoading({
       title: '设置进度中',
     });
-    
+
     wx.cloud.callFunction({
       name: 'todoModel',
       data: {
@@ -961,14 +989,14 @@ Page({
     }).then(res => {
       wx.hideLoading();
       console.log('设置进度云函数返回结果:', res);
-      
+
       if (res.result && res.result.code === 0) {
         wx.showToast({
           title: '进度已设置',
           icon: 'success',
           duration: 2000
         });
-        
+
         // 刷新目标列表
         this.getAimList();
       } else {
@@ -989,20 +1017,20 @@ Page({
       });
     });
   },
-  
+
   // 显示手动设置进度对话框
-  showSetProgressDialog: function(e) {
+  showSetProgressDialog: function (e) {
     const { id } = e.currentTarget.dataset;
     const aim = this.data.aims.find(a => a._id === id);
-    
+
     if (!aim) return;
-    
+
     wx.showActionSheet({
       itemList: ['0%', '25%', '50%', '75%', '100%'],
       success: (res) => {
         const progressValues = [0, 25, 50, 75, 100];
         const progress = progressValues[res.tapIndex];
-        
+
         this.setAimProgress(id, progress);
       }
     });

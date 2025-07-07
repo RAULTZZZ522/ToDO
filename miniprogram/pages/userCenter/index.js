@@ -1,7 +1,8 @@
 Page({
   data: {
     userInfo: null,
-    hasUserInfo: false
+    hasUserInfo: false,
+    debugInfo: ''
   },
 
   onLoad: function () {
@@ -18,7 +19,7 @@ Page({
     // 检查登录状态，如果没有userInfo或authSetting，则显示为未登录状态
     const userInfo = wx.getStorageSync('userInfo');
     const authSetting = wx.getStorageSync('authSetting');
-    
+
     if (userInfo && authSetting && authSetting.userInfo) {
       this.setData({
         userInfo,
@@ -45,15 +46,29 @@ Page({
           success: (loginRes) => {
             const code = loginRes.code;
 
+            // 记录 wx.login 返回
+            console.log('wx.login 成功，code:', code);
+            this.setData({
+              debugInfo: `wx.login 成功，code: ${code}`
+            });
+
             // 调用云函数登录，获取openid
             wx.cloud.callFunction({
               name: 'login',
-              data: { code },
+              data: { code, userInfo },
               success: res => {
+                console.log('云函数 login 调用成功，结果:', res);
+                // 在调试栏展示云函数调用成功
+                this.setData({
+                  debugInfo: `云函数成功，openid: ${res.result && res.result.openid}`
+                });
+                const result = res.result || {};
                 // 合并用户信息
                 const userData = {
                   ...userInfo,
-                  openid: res.result.openid
+                  openid: result.openid,
+                  role: result.role || 'common',
+                  userId: result.userId || ''
                 };
 
                 // 保存到本地
@@ -72,6 +87,9 @@ Page({
               },
               fail: err => {
                 console.error('获取用户openid失败', err);
+                this.setData({
+                  debugInfo: `云函数调用失败: ${err.errMsg || err}`
+                });
                 // 即使没有openid，也可以显示基本用户信息
                 wx.setStorageSync('userInfo', userInfo);
                 wx.setStorageSync('authSetting', { userInfo: true });

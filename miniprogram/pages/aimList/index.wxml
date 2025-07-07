@@ -49,7 +49,7 @@
         <text class="related-title">相关日程：{{item.relatedTodos.length}}个</text>
         <view class="todo-list">
           <view wx:for="{{todos}}" wx:for-item="todo" wx:key="_id" wx:if="{{item.relatedTodos.includes(todo._id)}}" class="related-todo-item">
-            <text class="todo-item">• {{todo.title}}</text>
+            <text class="todo-item">{{todo.completed ? '✓' : '•'}} {{todo.title}}</text>
           </view>
         </view>
       </view>
@@ -108,14 +108,12 @@
         <text class="form-label">相关日程</text>
         
         <view wx:if="{{todos.length === 0}}" class="empty-todos">暂无可关联日程</view>
-        <view wx:else class="todo-checkbox-container">
-          <view wx:for="{{todos}}" wx:key="_id" class="todo-item">
-            <view class="todo-checkbox" bindtap="toggleAddTodo" data-id="{{item._id}}">
-              <view class="checkbox {{selectedTodoIds.includes(item._id) ? 'checked' : ''}}"></view>
-            </view>
-            <view class="todo-title" bindtap="toggleAddTodo" data-id="{{item._id}}">{{item.title}}</view>
-          </view>
-        </view>
+        <checkbox-group wx:else class="add-checkbox-group" value="{{selectedTodoIds}}" bindchange="onTodoCheckboxChange">
+          <label wx:for="{{todos}}" wx:key="_id" class="add-checkbox-item">
+            <checkbox value="{{item._id}}" />
+            <text class="checkbox-text">{{item.title}}</text>
+          </label>
+        </checkbox-group>
       </view>
       
       <button class="submit-btn" bindtap="addAim">确认添加</button>
@@ -134,14 +132,12 @@
         <text class="form-label">选择关联日程</text>
         
         <view wx:if="{{todos.length === 0}}" class="empty-todos">暂无可关联日程</view>
-        <view wx:else class="todo-checkbox-container">
-          <view wx:for="{{todos}}" wx:key="_id" class="todo-item">
-            <view class="todo-checkbox" bindtap="toggleTodo" data-id="{{item._id}}">
-              <view class="checkbox {{selectedTodoIds.includes(item._id) ? 'checked' : ''}}"></view>
-            </view>
-            <view class="todo-title" bindtap="toggleTodo" data-id="{{item._id}}">{{item.title}}</view>
-          </view>
-        </view>
+        <checkbox-group wx:else class="relate-checkbox-group" value="{{selectedTodoIds}}" bindchange="onTodoCheckboxChange">
+          <label wx:for="{{todos}}" wx:key="_id" class="relate-checkbox-item">
+            <checkbox value="{{item._id}}" />
+            <text class="checkbox-text">{{item.title}}</text>
+          </label>
+        </checkbox-group>
       </view>
       
       <button class="submit-btn" bindtap="confirmUpdateRelatedTodos">确认关联</button>
