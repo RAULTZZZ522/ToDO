@@ -17,6 +17,13 @@ const navigateTo = (path) => {
   currentPath.value = path
   router.push(path)
 }
+
+// 退出登录
+const logout = () => {
+  localStorage.removeItem('adminLoggedIn')
+  localStorage.removeItem('adminOpenId')
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -51,6 +58,10 @@ const navigateTo = (path) => {
           <div class="user-profile">
             <div class="avatar">管</div>
             <span class="username">管理员</span>
+            <!-- 下拉菜单 -->
+            <div class="dropdown">
+              <div class="dropdown-item" @click.stop="logout">退出登录</div>
+            </div>
           </div>
         </div>
       </header>
@@ -200,6 +211,7 @@ body {
 .user-profile {
   display: flex;
   align-items: center;
+  position: relative;
 }
 
 .avatar {
@@ -243,4 +255,40 @@ body {
 .icon-user::before { content: "👥"; }
 .icon-todo::before { content: "📝"; }
 .icon-clock::before { content: "⏱️"; }
+
+/* 确保 user-profile 相对定位以放置 dropdown */
+.user-profile {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  background: var(--card-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  border-radius: 4px;
+  min-width: 120px;
+  z-index: 20;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.user-profile:hover .dropdown {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.dropdown-item:hover {
+  background: rgba(0,0,0,0.05);
+}
 </style>
