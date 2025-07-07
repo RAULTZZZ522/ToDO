@@ -39,7 +39,7 @@
       </view>
       <view class="stat-item">
         <text class="stat-value">{{todayTodoCount}}</text>
-        <text class="stat-label">未完成目标数</text>
+        <text class="stat-label">未完成目标</text>
       </view>
     </view>
   </view>
@@ -48,7 +48,6 @@
   <view class="stats-card">
     <view class="card-header">
       <text class="card-title">专注时长分布</text>
-      <view class="share-button" bindtap="shareFocusData">分享</view>
     </view>
     
     <!-- 分布类型选择器 -->
@@ -66,7 +65,7 @@
     
     <!-- 图表区域 -->
     <view class="chart-container">
-      <canvas canvas-id="columnCanvas" id="columnCanvas" type="2d" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"></canvas>
+      <canvas canvas-id="columnCanvas" id="columnCanvas" type="2d" style="width: {{canvasWidth}}px; height: {{canvasHeight}}px; display: block;"></canvas>
       <view wx:if="{{chartLoading}}" class="loading-overlay">
         <text>加载中...</text>
       </view>
@@ -91,7 +90,7 @@
     </view>
     
     <view class="pie-chart-container">
-      <canvas canvas-id="pieCanvas" id="pieCanvas" type="2d" style="width:300px;height:300px;"></canvas>
+      <canvas canvas-id="pieCanvas" id="pieCanvas" type="2d" style="width:300px;height:300px; display: block;"></canvas>
     </view>
     
     <view class="pie-legend">
@@ -103,11 +102,6 @@
         </view>
       </block>
     </view>
-  </view>
-  
-  <!-- 查看专注记录按钮 -->
-  <view class="view-records-btn" bindtap="viewFocusRecords">
-    查看专注记录
   </view>
   
   <!-- 加载提示 -->

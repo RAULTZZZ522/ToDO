@@ -676,4 +676,187 @@ exports.linkTodosToAim = async (event, context) => {
       error: err
     };
   }
+};
+
+// 获取截止日期大于当前日期的未完成目标数量
+exports.getUnfinishedAimsCount = async (event, context) => {
+  const { OPENID } = cloud.getWXContext();
+  
+  console.log('开始获取未完成目标数量, OPENID:', OPENID);
+  
+  try {
+    // 获取当前日期
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    console.log('当前日期:', today);
+    
+    // 首先获取用户的所有目标
+    const allAimsResult = await aimsCollection.where({
+      _openid: OPENID
+    }).get();
+    
+    console.log('用户所有目标数量:', allAimsResult.data.length);
+    
+    if (!allAimsResult.data || allAimsResult.data.length === 0) {
+      console.log('用户没有目标，返回0');
+      return {
+        code: 0,
+        count: 0
+      };
+    }
+    
+    // 查询截止日期大于今天且未完成的目标（进度小于100%）
+    // 由于可能有些目标没有设置deadline，我们需要特殊处理
+    const unfinishedAims = allAimsResult.data.filter(aim => {
+      // 只统计进度小于100的目标
+      if (aim.progress >= 100) {
+        return false;
+      }
+      
+      // 如果有deadline并且大于今天，则计入统计
+      if (aim.deadline && new Date(aim.deadline) > today) {
+        return true;
+      }
+      
+      return false;
+    });
+    
+    console.log('未完成目标列表:', unfinishedAims);
+    console.log('未完成目标数量:', unfinishedAims.length);
+    
+    return {
+      code: 0,
+      count: unfinishedAims.length
+    };
+  } catch (err) {
+    console.error('获取未完成目标数量失败:', err);
+    return { code: -1, msg: '获取未完成目标数量失败', error: err.message };
+  }
+};
+
+// 获取todos分类统计数据
+exports.getCategoryStats = async (event, context) => {
+  const { OPENID } = cloud.getWXContext();
+  
+  console.log('开始获取分类统计数据, OPENID:', OPENID);
+  
+  try {
+    // 获取用户的所有待办事项
+    const todosResult = await todosCollection.where({
+      _openid: OPENID
+    }).get();
+    
+    const todos = todosResult.data;
+    console.log('获取到的待办事项数量:', todos.length);
+    
+    if (!todos || todos.length === 0) {
+      console.log('用户没有待办事项，返回空数据');
+      return {
+        code: 0,
+        data: []
+      };
+    }
+    
+    // 统计每个分类的数量
+    const categoryStats = {};
+    
+    todos.forEach(todo => {
+      const category = todo.category || '其他'; // 如果没有分类，归为"其他"
+      
+      if (!categoryStats[category]) {
+        categoryStats[category] = 0;
+      }
+      
+      categoryStats[category]++;
+    });
+    
+    console.log('分类统计结果:', categoryStats);
+    
+    // 转换为前端需要的数据格式
+    const pieChartData = Object.keys(categoryStats).map(category => {
+      return {
+        label: category,
+        value: categoryStats[category],
+        // 颜色将在前端设置
+        highlight: false
+      };
+    });
+    
+    console.log('生成的饼图数据:', pieChartData);
+    
+    return {
+      code: 0,
+      data: pieChartData
+    };
+  } catch (err) {
+    console.error('获取分类统计数据失败:', err);
+    return { code: -1, msg: '获取分类统计数据失败', error: err.message };
+  }
+};
+
+// 获取pomodoro按分类统计的累计时长
+exports.getPomodoroCategoryStats = async (event, context) => {
+  const { OPENID } = cloud.getWXContext();
+  
+  console.log('开始获取pomodoro分类统计数据, OPENID:', OPENID);
+  
+  try {
+    // 获取pomodoro集合
+    const pomodoroCollection = db.collection('pomodoro');
+    
+    // 获取用户已完成的番茄钟记录
+    const pomodoroResult = await pomodoroCollection.where({
+      _openid: OPENID,
+      completed: true  // 只统计已完成的番茄钟
+    }).get();
+    
+    const records = pomodoroResult.data;
+    console.log('获取到的番茄钟记录数量:', records.length);
+    
+    if (!records || records.length === 0) {
+      console.log('用户没有番茄钟记录，返回空数据');
+      return {
+        code: 0,
+        data: []
+      };
+    }
+    
+    // 按分类统计累计时长
+    const categoryStats = {};
+    
+    records.forEach(record => {
+      const category = record.category || '其他'; // 如果没有分类，归为"其他"
+      const duration = parseInt(record.duration) || 0;
+      
+      if (!categoryStats[category]) {
+        categoryStats[category] = 0;
+      }
+      
+      categoryStats[category] += duration;
+    });
+    
+    console.log('番茄钟分类时长统计结果:', categoryStats);
+    
+    // 转换为前端需要的数据格式
+    const pieChartData = Object.keys(categoryStats).map(category => {
+      return {
+        label: category,
+        value: categoryStats[category], // 这里value是累计时长（分钟）
+        highlight: false
+      };
+    });
+    
+    // 按照时长从大到小排序
+    pieChartData.sort((a, b) => b.value - a.value);
+    
+    console.log('生成的饼图数据:', pieChartData);
+    
+    return {
+      code: 0,
+      data: pieChartData
+    };
+  } catch (err) {
+    console.error('获取番茄钟分类统计数据失败:', err);
+    return { code: -1, msg: '获取番茄钟分类统计数据失败', error: err.message };
+  }
 }; 

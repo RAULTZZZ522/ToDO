@@ -106,7 +106,7 @@ Page({
     
     // 专注分布
     distributionType: 'day', // 'day', 'week', 'month'
-    distributionData: [],
+    distributionData: mockData.distribution.day, // 默认使用日视图的模拟数据
     noValidData: false, // 是否没有有效数据
     
     // 界面控制
@@ -130,10 +130,10 @@ Page({
     // 设置当前日期
     const now = new Date();
     const year = now.getFullYear();
-    const month = now.getMonth() + 1;
-    const day = now.getDate();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
     this.setData({
-      currentDate: `2025-07-01` // 使用固定测试日期
+      currentDate: `${year}-${month}-${day}` // 使用当前真实日期
     });
     
     // 获取屏幕宽度，设置图表宽度
@@ -145,6 +145,14 @@ Page({
         });
       }
     });
+    
+    // 确保有默认数据
+    if (!this.data.distributionData || this.data.distributionData.length === 0) {
+      console.log('初始化默认分布数据');
+      this.setData({
+        distributionData: mockData.distribution.day
+      });
+    }
     
     // 加载统计数据
     this.loadStatisticsData();
@@ -181,31 +189,201 @@ Page({
     console.log('加载统计数据');
     this.setData({ loading: true });
     try {
-      // 获取今日待办日程数
+      // 获取未完成目标数
       let todayTodoCount = 0;
       try {
+        console.log('开始获取未完成目标数...');
         const res = await wx.cloud.callFunction({
           name: 'todoModel',
           data: {
-            $url: 'getTodayTodoCount'
+            type: 'getUnfinishedAimsCount'
           }
         });
+        console.log('未完成目标数API返回结果:', res);
         if (res && res.result && res.result.code === 0) {
-          todayTodoCount = res.result.count;
+          todayTodoCount = res.result.count || 0;
+          console.log('获取到的未完成目标数:', todayTodoCount);
+        } else {
+          console.warn('API返回异常，结果:', res);
         }
       } catch (err) {
-        console.warn('获取今日待办日程数失败', err);
+        console.error('获取未完成目标数失败', err);
       }
-      // 设置今日待办日程数
+      
+      // 设置未完成目标数
+      console.log('设置未完成目标数:', todayTodoCount);
       this.setData({ todayTodoCount });
-      // 兼容原有本地模拟数据
-      this.loadMockData();
+      
+      // 获取累计专注统计数据
+      try {
+        console.log('获取累计专注统计数据');
+        const pomodoroStatsRes = await wx.cloud.callFunction({
+          name: 'todoModel',
+          data: {
+            type: 'getPomodoroStats'
+          }
+        });
+        
+        if (pomodoroStatsRes && pomodoroStatsRes.result && pomodoroStatsRes.result.code === 0) {
+          const { totalCount, totalMinutes, dailyAverage } = pomodoroStatsRes.result.data;
+          console.log('获取到的累计专注统计数据:', { totalCount, totalMinutes, dailyAverage });
+          this.setData({ totalCount, totalMinutes, dailyAverage });
+        } else {
+          console.warn('获取累计专注统计数据失败，使用模拟数据');
+          const { totalCount, totalMinutes, dailyAverage } = mockData.totalStats;
+          this.setData({ totalCount, totalMinutes, dailyAverage });
+        }
+      } catch (err) {
+        console.error('获取累计专注统计数据失败', err);
+        // 出错时使用模拟数据
+        const { totalCount, totalMinutes, dailyAverage } = mockData.totalStats;
+        this.setData({ totalCount, totalMinutes, dailyAverage });
+      }
+      
+      // 获取当日专注数据
+      try {
+        console.log('获取当日专注数据');
+        const currentDate = this.data.currentDate;
+        const dailyStatsRes = await wx.cloud.callFunction({
+          name: 'todoModel',
+          data: {
+            type: 'getDailyPomodoroStats',
+            date: currentDate
+          }
+        });
+        
+        if (dailyStatsRes && dailyStatsRes.result && dailyStatsRes.result.code === 0) {
+          const { count, minutes } = dailyStatsRes.result.data;
+          console.log('获取到的当日专注数据:', { count, minutes });
+          this.setData({
+            dailyCount: count,
+            dailyMinutes: minutes
+          });
+        } else {
+          console.warn('获取当日专注数据失败，使用模拟数据');
+          const dailyData = mockData.dailyStats[currentDate] || { count: 0, minutes: 0 };
+          this.setData({
+            dailyCount: dailyData.count,
+            dailyMinutes: dailyData.minutes
+          });
+        }
+      } catch (err) {
+        console.error('获取当日专注数据失败', err);
+        // 出错时使用模拟数据
+        const dailyData = mockData.dailyStats[this.data.currentDate] || { count: 0, minutes: 0 };
+        this.setData({
+          dailyCount: dailyData.count,
+          dailyMinutes: dailyData.minutes
+        });
+      }
+      
+      // 获取专注分布数据
+      try {
+        console.log('获取专注分布数据，类型:', this.data.distributionType);
+        this.setData({ chartLoading: true });
+        const distributionType = this.data.distributionType;
+        
+        // 先设置默认模拟数据，确保即使云函数调用失败也能显示图表
+        this.setData({
+          distributionData: mockData.distribution[distributionType] || []
+        });
+        
+        // 立即绘制一次，显示模拟数据
+        setTimeout(() => {
+          this.drawChartSimple();
+        }, 100);
+        
+        const distributionRes = await wx.cloud.callFunction({
+          name: 'todoModel',
+          data: {
+            type: 'getPomodoroDistribution',
+            distributionType: distributionType
+          }
+        });
+        
+        console.log('专注分布数据API响应:', JSON.stringify(distributionRes));
+        
+        if (distributionRes && distributionRes.result && distributionRes.result.code === 0 && Array.isArray(distributionRes.result.data)) {
+          const distributionData = distributionRes.result.data;
+          console.log('获取到的专注分布数据:', JSON.stringify(distributionData));
+          
+          // 计算是否所有数据都为0
+          const noValidData = distributionData.every(item => !item || !item.minutes || item.minutes === 0);
+          console.log('是否没有有效数据:', noValidData);
+          
+          this.setData({ 
+            distributionData,
+            noValidData,
+            chartLoading: false
+          });
+          
+          // 绘制图表
+          setTimeout(() => {
+            this.drawChartSimple();
+          }, 300);
+        } else {
+          console.warn('获取专注分布数据失败或格式不正确，使用模拟数据');
+          this.setData({ chartLoading: false });
+        }
+      } catch (err) {
+        console.error('获取专注分布数据失败', err);
+        this.setData({ chartLoading: false });
+      }
+      
+      // 获取分类统计数据（用于饼图）
+      try {
+        console.log('获取分类统计数据');
+        
+        const categoryStatsRes = await wx.cloud.callFunction({
+          name: 'todoModel',
+          data: {
+            type: 'getPomodoroCategoryStats'
+          }
+        });
+        
+        console.log('分类统计数据API响应:', JSON.stringify(categoryStatsRes));
+        
+        if (categoryStatsRes && categoryStatsRes.result && categoryStatsRes.result.code === 0 && Array.isArray(categoryStatsRes.result.data)) {
+          const pieData = categoryStatsRes.result.data;
+          console.log('获取到的分类统计数据:', JSON.stringify(pieData));
+          
+          // 如果有数据，则更新饼图
+          if (pieData && pieData.length > 0) {
+            // 使用优化函数处理数据，确保颜色一致
+            const optimizedPieData = this.optimizePieData(pieData);
+            this.setData({ pieChartData: optimizedPieData });
+            
+            // 重绘饼图
+            setTimeout(() => {
+              this.drawPieChart();
+            }, 300);
+          } else {
+            console.log('没有有效的番茄钟分类数据，使用默认数据');
+            // 没有数据时使用默认数据
+            this.setData({ 
+              pieChartData: [
+                { label: '学习', value: 120, color: '#FF9F7F', highlight: false, percent: '33%' },
+                { label: '工作', value: 90, color: '#FFD666', highlight: false, percent: '25%' },
+                { label: '生活', value: 60, color: '#FFAA85', highlight: false, percent: '16%' },
+                { label: '其他', value: 20, color: '#FADEC9', highlight: false, percent: '6%' }
+              ]
+            });
+          }
+        } else {
+          console.warn('获取分类统计数据失败或格式不正确，使用默认数据');
+        }
+      } catch (err) {
+        console.error('获取分类统计数据失败', err);
+      }
+      
     } catch (err) {
       console.error('加载统计数据失败', err);
       wx.showToast({
         title: '数据加载失败',
         icon: 'none'
       });
+      // 出错时使用本地模拟数据
+      this.loadMockData();
     } finally {
       this.setData({ loading: false });
     }
@@ -246,8 +424,24 @@ Page({
   
   // 简化版图表绘制函数
   drawChartSimple: function() {
-    console.log('绘制图表', this.data.distributionType);
-    const { distributionData, distributionType, noValidData } = this.data;
+    console.log('准备绘制图表，类型:', this.data.distributionType);
+    
+    // 确保有数据可用
+    let distributionData = this.data.distributionData;
+    const distributionType = this.data.distributionType;
+    
+    // 如果没有数据，使用模拟数据
+    if (!distributionData || !Array.isArray(distributionData) || distributionData.length === 0) {
+      console.warn('分布数据为空或格式不正确，强制使用模拟数据');
+      distributionData = mockData.distribution[distributionType] || [];
+    }
+    
+    console.log('使用的图表数据:', distributionData);
+    
+    // 计算是否所有数据都为0
+    const noValidData = distributionData.every(item => !item || !item.minutes || item.minutes === 0);
+    console.log('是否无有效数据:', noValidData);
+    
     const width = this.data.canvasWidth;
     const height = this.data.canvasHeight;
     const padding = 30;
@@ -257,99 +451,193 @@ Page({
     query.select('#columnCanvas')
       .fields({ node: true, size: true })
       .exec((res) => {
-        if (res && res[0] && res[0].node) {
-          const canvas = res[0].node;
-          const ctx = canvas.getContext('2d');
+        if (!res || !res[0] || !res[0].node) {
+          console.error('无法获取canvas节点');
+          return;
+        }
+        
+        const canvas = res[0].node;
+        const ctx = canvas.getContext('2d');
+        
+        try {
+          // 获取设备像素比并设置canvas大小
+          const dpr = wx.getWindowInfo().pixelRatio || 2;
           
-          // 设置canvas实际大小
-          const dpr = wx.getWindowInfo().pixelRatio;
+          // 设置canvas物理像素大小
           canvas.width = width * dpr;
           canvas.height = height * dpr;
+          
+          // 设置canvas的CSS大小
+          canvas._width = width;
+          canvas._height = height;
+          canvas.style = {
+            width: width + 'px',
+            height: height + 'px'
+          };
+          
+          // 根据dpr缩放context
           ctx.scale(dpr, dpr);
-    
-    // 清空画布
-    ctx.clearRect(0, 0, width, height);
-    
+          
+          // 清空画布
+          ctx.clearRect(0, 0, width, height);
+          
           // 检查是否有数据
-          if (!distributionData || distributionData.length === 0 || noValidData) {
-            // 没有有效数据，不绘制图表
-      return;
-    }
-    
-    // 找出最大值，用于计算高度比例
-    let maxValue = 0;
-    distributionData.forEach(item => {
-      if (item.minutes > maxValue) maxValue = item.minutes;
-    });
-    
-    // 如果最大值为0，设置为10以避免除零错误
-    maxValue = maxValue || 10;
-    
-    // 计算柱状图宽度和间距
-    const barCount = distributionData.length;
-    const availableWidth = width - 2 * padding;
-    const barWidth = Math.min(availableWidth / barCount * 0.6, 30);
-    const barSpacing = availableWidth / barCount;
-    
-    // 绘制坐标轴
-    ctx.beginPath();
-          ctx.strokeStyle = '#cccccc';
-    ctx.moveTo(padding, height - padding);
-    ctx.lineTo(width - padding, height - padding); // x轴
-    ctx.stroke();
-    
-    // Y轴
-    ctx.beginPath();
-          ctx.strokeStyle = '#cccccc';
-    ctx.moveTo(padding, padding);
-    ctx.lineTo(padding, height - padding);
-    ctx.stroke();
-    
-    // 绘制柱状图
-    distributionData.forEach((item, index) => {
-      const x = padding + index * barSpacing + (barSpacing - barWidth) / 2;
-      const barHeight = (item.minutes / maxValue) * (height - 2 * padding - 20);
-      const y = height - padding - barHeight;
-      
-      // 绘制柱子
-      ctx.beginPath();
-            ctx.fillStyle = '#ff6b6b';
-      ctx.rect(x, y, barWidth, barHeight);
-      ctx.fill();
-      
-      // 绘制文本标签（根据不同类型调整显示策略）
-      if (distributionType === 'week' || (distributionType === 'day' && barCount <= 12) || 
-          (distributionType === 'month' && barCount <= 15)) {
-              ctx.font = '10px sans-serif';
+          if (noValidData) {
+            // 没有有效数据，显示提示文本
+            ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+            ctx.fillStyle = '#999999';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`暂无${distributionType === 'day' ? '日' : distributionType === 'week' ? '周' : '月'}数据`, width/2, height/2);
+            return;
+          }
+          
+          // 找出最大值，用于计算高度比例
+          let maxValue = 0;
+          distributionData.forEach(item => {
+            if (item && item.minutes > maxValue) maxValue = item.minutes;
+          });
+          
+          // 如果最大值为0，设置为10以避免除零错误
+          maxValue = maxValue || 10;
+          
+          // 计算柱状图宽度和间距
+          const barCount = distributionData.length;
+          const availableWidth = width - 2 * padding;
+          const barWidth = Math.min(availableWidth / barCount * 0.6, 30);
+          const barSpacing = availableWidth / barCount;
+          
+          // 绘制坐标轴
+          ctx.beginPath();
+          ctx.strokeStyle = '#e0e0e0';
+          ctx.lineWidth = 1;
+          ctx.moveTo(padding, height - padding);
+          ctx.lineTo(width - padding, height - padding); // x轴
+          ctx.stroke();
+          
+          // Y轴
+          ctx.beginPath();
+          ctx.strokeStyle = '#e0e0e0';
+          ctx.moveTo(padding, padding);
+          ctx.lineTo(padding, height - padding);
+          ctx.stroke();
+          
+          // 绘制Y轴刻度
+          const ySteps = 5;
+          const yStepSize = maxValue / ySteps;
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#999999';
+          ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+          ctx.textBaseline = 'middle';
+          
+          for (let i = 0; i <= ySteps; i++) {
+            const y = height - padding - (i / ySteps) * (height - 2 * padding - 20);
+            const value = Math.round(i * yStepSize);
+            
+            // 绘制刻度线
+            ctx.beginPath();
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.moveTo(padding - 5, y);
+            ctx.lineTo(padding, y);
+            ctx.stroke();
+            
+            // 绘制刻度值
+            ctx.fillText(value, padding - 8, y);
+          }
+          
+          // 绘制柱状图
+          distributionData.forEach((item, index) => {
+            if (!item) return; // 跳过无效数据
+            
+            const x = padding + index * barSpacing + (barSpacing - barWidth) / 2;
+            const barHeight = ((item.minutes || 0) / maxValue) * (height - 2 * padding - 20);
+            const y = height - padding - barHeight;
+            
+            // 渐变色
+            const gradient = ctx.createLinearGradient(x, y, x, height - padding);
+            gradient.addColorStop(0, '#ff8f66');
+            gradient.addColorStop(1, '#ffaa85');
+            
+            // 绘制柱子
+            ctx.beginPath();
+            ctx.fillStyle = gradient;
+            // 绘制圆角矩形
+            const radius = Math.min(barWidth / 2, 4);
+            
+            try {
+              ctx.moveTo(x + radius, y);
+              ctx.lineTo(x + barWidth - radius, y);
+              ctx.arcTo(x + barWidth, y, x + barWidth, y + radius, radius);
+              ctx.lineTo(x + barWidth, height - padding);
+              ctx.lineTo(x, height - padding);
+              ctx.lineTo(x, y + radius);
+              ctx.arcTo(x, y, x + radius, y, radius);
+              ctx.fill();
+            } catch (e) {
+              console.error('绘制柱子失败:', e);
+              // 使用简单矩形作为备选
+              ctx.fillRect(x, y, barWidth, barHeight);
+            }
+            
+            // 如果数值大于0，在柱子上方显示数值
+            if (item.minutes && item.minutes > 0) {
+              ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+              ctx.fillStyle = '#ff6b6b';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              // 添加小白色背景使数字更清晰
+              const textWidth = ctx.measureText(item.minutes).width;
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+              ctx.fillRect(x + barWidth / 2 - textWidth / 2 - 2, y - 12, textWidth + 4, 16);
+              // 绘制数字
+              ctx.fillStyle = '#ff6b6b';
+              ctx.fillText(item.minutes, x + barWidth / 2, y - 4);
+            }
+            
+            // 绘制文本标签
+            if (item.label) {
+              ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
               ctx.fillStyle = '#666666';
-        const label = item.label;
-        const textWidth = ctx.measureText(label).width || 10;
-        
-        // 优化标签显示位置
-        const labelX = Math.max(
-          x + (barWidth - textWidth) / 2,
-          padding  // 确保不会超出左边界
-        );
-        ctx.fillText(label, labelX, height - padding + 15);
-      }
-      
-      // 显示数值
-      if (item.minutes > 0) {
-              ctx.font = '9px sans-serif';
-              ctx.fillStyle = '#666666';
-        const value = item.minutes.toString();
-        const valueWidth = ctx.measureText(value).width || 10;
-        const valueX = x + (barWidth - valueWidth) / 2;
-        ctx.fillText(value, valueX, y - 5);
-      }
-    });
-    
-    // 添加Y轴最大值标签
-          ctx.font = '10px sans-serif';
-          ctx.fillStyle = '#666666';
-    ctx.fillText(maxValue.toString(), padding - 15, padding + 10);
-        } else {
-          console.error('获取不到canvas节点');
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'top';
+              
+              // 根据不同类型调整标签显示策略
+              let label = item.label;
+              
+              // 对于月视图，如果数据点过多，可能需要隐藏部分标签
+              if (distributionType === 'month' && barCount > 15) {
+                // 只显示5天一个标签
+                if (index % 5 !== 0 && index !== barCount - 1) {
+                  label = '';
+                }
+              }
+              
+              // 对于日视图，如果数据点过多，可能需要隐藏部分标签
+              if (distributionType === 'day' && barCount > 12) {
+                // 只显示3小时一个标签
+                if (index % 3 !== 0 && index !== barCount - 1) {
+                  label = '';
+                }
+              }
+              
+              if (label) {
+                ctx.fillText(label, x + barWidth / 2, height - padding + 15);
+              }
+            }
+          });
+          
+          // 添加图表标题
+          ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+          ctx.fillStyle = '#7d5a50';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          ctx.fillText(
+            distributionType === 'day' ? '今日专注时长分布' : 
+            distributionType === 'week' ? '本周专注时长分布' : '本月专注时长分布', 
+            width / 2, padding - 20
+          );
+        } catch (e) {
+          console.error('绘制图表失败：', e);
         }
       });
   },
@@ -411,7 +699,7 @@ Page({
         name: 'todoModel',
         data: {
           type: 'getPomodoroDistribution',
-          type
+          distributionType: type
         }
       });
       
@@ -427,87 +715,152 @@ Page({
     }
   },
   
-  // 切换分布类型
+  // 切换分布类型（日/周/月）
   switchDistributionType: function(e) {
-    const type = e.currentTarget.dataset.type;
-    console.log('切换分布类型:', type);
-    
-    // 如果已经是当前选中的类型，不做处理
-    if (type === this.data.distributionType) {
-      return;
-    }
-    
-    // 更新状态
-    this.setData({ 
-      distributionType: type,
-      chartLoading: true
-    });
-    
-    // 更新分布数据
-    const distributionData = mockData.distribution[type] || [];
-    
-    // 计算是否所有数据都为0
-    const noValidData = distributionData.every(item => !item.minutes);
-    
-    this.setData({ 
-      distributionData,
-      noValidData
-    });
-    
-    // 重新绘制图表
-    setTimeout(() => {
-      this.drawChartSimple();
+    try {
+      const type = e.currentTarget.dataset.type;
+      const index = parseInt(e.currentTarget.dataset.index || 0);
+      
+      if (this.data.distributionType === type) return;
+      
+      console.log('切换分布类型:', type);
+      
+      this.setData({
+        distributionType: type,
+        chartLoading: true
+      });
+      
+      // 先设置默认模拟数据，确保即使云函数调用失败也能显示图表
+      this.setData({
+        distributionData: mockData.distribution[type] || []
+      });
+      
+      // 立即绘制一次，显示模拟数据
+      setTimeout(() => {
+        this.drawChartSimple();
+      }, 100);
+      
+      // 获取专注分布数据
+      wx.cloud.callFunction({
+        name: 'todoModel',
+        data: {
+          type: 'getPomodoroDistribution',
+          distributionType: type
+        }
+      })
+      .then(res => {
+        console.log('获取分布数据响应:', JSON.stringify(res));
+        if (res && res.result && res.result.code === 0 && Array.isArray(res.result.data)) {
+          const distributionData = res.result.data;
+          console.log('切换视图获取到的专注分布数据:', JSON.stringify(distributionData));
+          
+          // 计算是否所有数据都为0
+          const noValidData = distributionData.every(item => !item || !item.minutes || item.minutes === 0);
+          
+          this.setData({ 
+            distributionData,
+            noValidData,
+            chartLoading: false
+          });
+          
+          // 绘制图表
+          setTimeout(() => {
+            this.drawChartSimple();
+          }, 300);
+        } else {
+          console.warn('切换视图获取专注分布数据失败或格式不正确，使用模拟数据');
+          this.setData({ chartLoading: false });
+        }
+      })
+      .catch(err => {
+        console.error('切换视图获取专注分布数据失败', err);
+        this.setData({ chartLoading: false });
+      });
+    } catch (error) {
+      console.error('switchDistributionType函数执行出错:', error);
       this.setData({ chartLoading: false });
-    }, 200);
+    }
   },
   
   // 切换日期
   changeDate: function(e) {
     const direction = e.currentTarget.dataset.direction;
-    const currentDate = new Date(this.data.currentDate);
+    const currentDate = this.data.currentDate;
     
+    // 解析当前日期
+    const date = new Date(currentDate);
+    
+    // 根据方向改变日期
     if (direction === 'prev') {
-      currentDate.setDate(currentDate.getDate() - 1);
+      date.setDate(date.getDate() - 1);
     } else if (direction === 'next') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      // 不能选择未来日期
-      if (currentDate.getTime() >= today.getTime()) {
-        return;
-      }
-      
-      currentDate.setDate(currentDate.getDate() + 1);
+      date.setDate(date.getDate() + 1);
     }
     
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
-    const day = currentDate.getDate();
-    const dateString = `${year}-${month < 10 ? '0' + month : month}-${day < 10 ? '0' + day : day}`;
+    // 格式化新日期
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const newDate = `${year}-${month}-${day}`;
     
-    this.setData({ currentDate: dateString });
-    
-    // 使用本地模拟数据
-    const dailyData = mockData.dailyStats[dateString] || { count: 0, minutes: 0 };
+    // 更新日期和加载数据
     this.setData({
-      dailyCount: dailyData.count,
-      dailyMinutes: dailyData.minutes
+      currentDate: newDate
     });
-  },
-  
-  // 分享功能
-  shareFocusData: function() {
-    wx.showToast({
-      title: '分享功能暂未实现',
-      icon: 'none'
+    
+    // 获取新日期的专注数据
+    wx.cloud.callFunction({
+      name: 'todoModel',
+      data: {
+        type: 'getDailyPomodoroStats',
+        date: newDate
+      }
+    })
+    .then(res => {
+      if (res && res.result && res.result.code === 0) {
+        const { count, minutes } = res.result.data;
+        console.log('获取到的当日专注数据:', { count, minutes });
+        this.setData({
+          dailyCount: count,
+          dailyMinutes: minutes
+        });
+      } else {
+        console.warn('获取当日专注数据失败，使用模拟数据');
+        const dailyData = mockData.dailyStats[newDate] || { count: 0, minutes: 0 };
+        this.setData({
+          dailyCount: dailyData.count,
+          dailyMinutes: dailyData.minutes
+        });
+      }
+    })
+    .catch(err => {
+      console.error('获取当日专注数据失败', err);
+      // 出错时使用模拟数据
+      const dailyData = mockData.dailyStats[newDate] || { count: 0, minutes: 0 };
+      this.setData({
+        dailyCount: dailyData.count,
+        dailyMinutes: dailyData.minutes
+      });
     });
-  },
-  
-  // 查看专注记录列表
-  viewFocusRecords: function() {
-    wx.showToast({
-      title: '该功能暂未实现',
-      icon: 'none'
+    
+    // 获取未完成目标数
+    wx.cloud.callFunction({
+      name: 'todoModel',
+      data: {
+        type: 'getUnfinishedAimsCount'
+      }
+    })
+    .then(res => {
+      if (res && res.result && res.result.code === 0) {
+        const count = res.result.count;
+        console.log('获取到的未完成目标数:', count);
+        this.setData({
+          todayTodoCount: count
+        });
+      }
+    })
+    .catch(err => {
+      console.error('获取未完成目标数失败', err);
     });
   },
   
@@ -532,9 +885,19 @@ Page({
             
             // 设置canvas实际大小为正方形
             const size = 300;
-            const dpr = wx.getWindowInfo().pixelRatio;
+            const dpr = wx.getWindowInfo().pixelRatio || 2;
             canvas.width = size * dpr;
             canvas.height = size * dpr;
+            
+            // 设置canvas的CSS大小
+            canvas._width = size;
+            canvas._height = size;
+            canvas.style = {
+              width: size + 'px',
+              height: size + 'px'
+            };
+            
+            // 根据dpr缩放context
             ctx.scale(dpr, dpr);
             
             // 绘制饼图
@@ -672,7 +1035,7 @@ Page({
       // 添加百分比标签
       if (angle > 0.15) { // 只为较大的扇形添加标签
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px Arial';
+        ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(item.percent, x, y);
@@ -783,11 +1146,21 @@ Page({
     this.setData({ pieChartData: data });
     
     // 绘制
-    ctx.draw();
+    ctx.draw(false);  // false 表示不保留之前的绘制内容
   },
 
   // 优化饼图数据，确保颜色和排序一致
   optimizePieData: function(originalData) {
+    if (!originalData || !Array.isArray(originalData) || originalData.length === 0) {
+      console.warn('优化饼图数据：输入数据为空或格式不正确，使用默认数据');
+      return [
+        { label: '学习', value: 120, color: '#FF9F7F', highlight: false, percent: '33%' },
+        { label: '工作', value: 90, color: '#FFD666', highlight: false, percent: '25%' },
+        { label: '生活', value: 60, color: '#FFAA85', highlight: false, percent: '16%' },
+        { label: '其他', value: 20, color: '#FADEC9', highlight: false, percent: '6%' }
+      ];
+    }
+    
     // 按值从大到小排序
     const sortedData = [...originalData].sort((a, b) => b.value - a.value);
     
@@ -797,7 +1170,22 @@ Page({
     sortedData.forEach((item, index) => {
       if (index < colors.length) {
         item.color = colors[index];
+      } else {
+        // 对于超出预定义颜色的项，使用最后一个颜色
+        item.color = colors[colors.length - 1];
       }
+      
+      // 确保highlight属性存在
+      if (item.highlight === undefined) {
+        item.highlight = false;
+      }
+    });
+    
+    // 计算百分比
+    const total = sortedData.reduce((sum, item) => sum + item.value, 0);
+    sortedData.forEach(item => {
+      const percent = total > 0 ? Math.round((item.value / total) * 100) : 0;
+      item.percent = percent + '%';
     });
     
     return sortedData;
