@@ -282,7 +282,7 @@ export const getPomodoros = async (options = {}) => {
       console.log('可用的集合列表:', collections);
     } catch (listError) {
       console.warn('获取集合列表失败，将使用预定义集合名称:', listError);
-    }
+it     }
 
     // 尝试从每个可能的集合中获取数据
     let result = [];
