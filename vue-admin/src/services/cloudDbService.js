@@ -5,7 +5,7 @@ import { initCloud } from './cloudService';
 // 存储成功的集合名称
 let successfulCollections = {
   todos: 'todos',
-  pomodoro: null,
+  pomodoro: 'pomodoro',
   aim: null,
   users: null
 };
@@ -274,14 +274,27 @@ export const getPomodoros = async (options = {}) => {
     // 在微信云开发中，集合名称可能是大小写敏感的
     const possibleCollectionNames = ['pomodoro', 'Pomodoro', 'POMODORO', 'pomodoroList', 'PomodoroList', 'pomodoros', 'Pomodoros'];
 
-    // 尝试列出所有集合
-    try {
-      console.log('尝试获取所有集合名称');
-      // 这段代码在某些微信云环境下可能不支持
-      const collections = await db.getCollectionList();
-      console.log('可用的集合列表:', collections);
-    } catch (listError) {
-      console.warn('获取集合列表失败，将使用预定义集合名称:', listError);
+    // 尝试列出所有集合（某些 SDK 版本不支持 getCollectionList）
+    if (typeof db.getCollectionList === 'function') {
+      try {
+        console.log('尝试获取所有集合名称');
+        const collections = await db.getCollectionList();
+        console.log('可用的集合列表:', collections);
+        // 如果返回值是数组，将其添加到待尝试的集合名称中
+        if (Array.isArray(collections)) {
+          collections.forEach(c => {
+            if (typeof c === 'string' && !possibleCollectionNames.includes(c)) {
+              possibleCollectionNames.push(c);
+            } else if (c && c.name && !possibleCollectionNames.includes(c.name)) {
+              possibleCollectionNames.push(c.name);
+            }
+          });
+        }
+      } catch (listError) {
+        console.warn('获取集合列表失败，将使用预定义集合名称:', listError);
+      }
+    } else {
+      console.log('当前 SDK 不支持 db.getCollectionList，跳过列表获取');
     }
 
     // 尝试从每个可能的集合中获取数据

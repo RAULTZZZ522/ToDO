@@ -1124,8 +1124,9 @@ const getRandomColor = (username) => {
 
 .search-form {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 16px;
+  align-items: center;
   margin-bottom: 16px;
 }
 

@@ -80,11 +80,17 @@ const loadPomodoros = async () => {
     pomodoros.value = Array.isArray(data) ? data : []
 
     // 补充可能缺失的字段
-    pomodoros.value = pomodoros.value.map(pomo => ({
-      ...pomo,
-      todo_title: pomo.todo_title || '未知任务',
-      userNickname: pomo.userNickname || pomo._openid || '未知用户',
-    }))
+    pomodoros.value = pomodoros.value.map(pomo => {
+      const mapped = {
+        ...pomo,
+        // 统一字段名，兼容不同版本
+        starttime: pomo.starttime || pomo.startTime,
+        endtime: pomo.endtime || pomo.endTime,
+        todo_title: pomo.todo_title || pomo.title || '未知任务',
+        userNickname: pomo.userNickname || pomo._openid || '未知用户',
+      };
+      return mapped;
+    })
   } catch (error) {
     console.error('获取番茄钟数据失败:', error)
     errorMessage.value = `获取数据失败: ${error.message || '未知错误'}`
@@ -517,8 +523,9 @@ onMounted(() => {
 
 .search-form {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 16px;
+  align-items: center;
 }
 
 .search-row,

@@ -258,7 +258,7 @@ onMounted(() => {
                   <div class="user-avatar">{{ user.nickname.charAt(0) }}</div>
                   <div class="user-info">
                     <div class="user-name">{{ user.nickname }}</div>
-                    <div class="user-id">{{ user._openid.substring(0, 8) }}...</div>
+                    <div class="user-id">{{ user._openid ? user._openid.substring(0, 8) : '未知ID' }}...</div>
                   </div>
                 </td>
                 <td>{{ user.taskCount }}</td>
@@ -291,11 +291,11 @@ onMounted(() => {
           <div class="detail-body">
             <div class="detail-profile">
               <div class="user-avatar large">
-                {{ currentUser.nickname.charAt(0) }}
+                {{ currentUser.nickname ? currentUser.nickname.charAt(0) : '用' }}
               </div>
               <div class="user-profile-info">
                 <h3>{{ currentUser.nickname }}</h3>
-                <div class="user-id">ID: {{ currentUser._openid }}</div>
+                <div class="user-id">ID: {{ currentUser._openid || '未知ID' }}</div>
               </div>
             </div>
 
