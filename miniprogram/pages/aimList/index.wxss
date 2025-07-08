@@ -1,5 +1,5 @@
 page {
-  background: #f7f7f7;
+  background-color: #fffaf5;
 }
 
 .aim-container {
@@ -16,14 +16,16 @@ page {
 .title {
   font-size: 40rpx;
   font-weight: bold;
+  color: #7d5a50;
 }
 
 .add-btn {
-  background: #ff4d4f;
+  background: #ff8f66;
   color: white;
   font-size: 28rpx;
   padding: 12rpx 30rpx;
   border-radius: 40rpx;
+  box-shadow: 0 4rpx 12rpx rgba(255, 143, 102, 0.2);
 }
 
 .aim-list {
@@ -32,21 +34,21 @@ page {
 
 .empty-tip {
   text-align: center;
-  color: #999;
+  color: #b5917a;
   margin-top: 100rpx;
 }
 
 .empty-todos {
-  color: #999;
+  color: #b5917a;
   font-size: 28rpx;
   padding: 10rpx 0;
 }
 
 .aim-item {
-  background: #fff;
+  background: #ffffff;
   border-radius: 16rpx;
   margin-bottom: 30rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4rpx 20rpx rgba(255, 180, 140, 0.08);
   padding: 30rpx;
 }
 
@@ -64,20 +66,20 @@ page {
 .aim-title {
   font-size: 36rpx;
   font-weight: bold;
-  color: #333;
+  color: #7d5a50;
 }
 
 .aim-category {
   font-size: 24rpx;
   padding: 4rpx 16rpx;
-  background: #f0f0f0;
-  color: #666;
+  background: #fff0e6;
+  color: #ff8f66;
   border-radius: 20rpx;
 }
 
 .aim-desc {
   font-size: 28rpx;
-  color: #666;
+  color: #b5917a;
   margin-bottom: 20rpx;
 }
 
@@ -92,17 +94,17 @@ page {
 
 .info-label {
   font-size: 28rpx;
-  color: #888;
+  color: #b5917a;
   width: 160rpx;
 }
 
 .info-value {
   font-size: 28rpx;
-  color: #333;
+  color: #7d5a50;
 }
 
 .urgent {
-  color: #ff4d4f;
+  color: #ff8f66;
   font-weight: bold;
 }
 
@@ -115,19 +117,19 @@ page {
   justify-content: space-between;
   margin-bottom: 10rpx;
   font-size: 28rpx;
-  color: #555;
+  color: #7d5a50;
 }
 
 .progress-bar-container {
   height: 20rpx;
-  background: #f0f0f0;
+  background: #fff0e6;
   border-radius: 10rpx;
   overflow: hidden;
 }
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(to right, #ff4d4f, #ff7875);
+  background: linear-gradient(to right, #ff8f66, #ffaa85);
   border-radius: 10rpx;
   transition: width 0.3s ease-in-out;
 }
@@ -135,12 +137,12 @@ page {
 .related-todos {
   margin-top: 20rpx;
   padding-top: 20rpx;
-  border-top: 1rpx solid #f0f0f0;
+  border-top: 1rpx solid #ffe0cc;
 }
 
 .related-title {
   font-size: 28rpx;
-  color: #888;
+  color: #b5917a;
   margin-bottom: 10rpx;
 }
 
@@ -151,7 +153,7 @@ page {
   margin-bottom: 10rpx;
   background-color: #fff;
   border-radius: 8rpx;
-  border: 1px solid #eee;
+  border: 1px solid #ffe0cc;
 }
 
 .todo-checkbox {
@@ -167,7 +169,7 @@ page {
 .checkbox {
   width: 40rpx;
   height: 40rpx;
-  border: 2rpx solid #ddd;
+  border: 2rpx solid #ffe0cc;
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -178,7 +180,7 @@ page {
 }
 
 .checkbox.checked {
-  border-color: #ff4d4f;
+  border-color: #ff8f66;
   background-color: #fff;
   position: relative;
 }
@@ -188,23 +190,23 @@ page {
   position: absolute;
   width: 28rpx;
   height: 28rpx;
-  background-color: #ff4d4f;
+  background-color: #ff8f66;
   border-radius: 50%;
 }
 
 .todo-title {
   flex: 1;
   font-size: 28rpx;
-  color: #333;
+  color: #7d5a50;
 }
 
 .debug-info {
-  background-color: #f8f8f8;
+  background-color: #fff7f0;
   padding: 10rpx;
   margin-bottom: 10rpx;
   border-radius: 8rpx;
   font-size: 24rpx;
-  color: #666;
+  color: #b5917a;
 }
 
 .debug-info text {
@@ -215,7 +217,7 @@ page {
 .todo-checkbox-container {
   max-height: 400rpx;
   overflow-y: auto;
-  border: 1px solid #eee;
+  border: 1px solid #ffe0cc;
   border-radius: 8rpx;
   margin-top: 10rpx;
   padding: 10rpx;
@@ -229,7 +231,7 @@ page {
 
 .action-btn {
   margin-left: 20rpx;
-  background: #ff4d4f;
+  background: #ff8f66;
   color: white;
 }
 
@@ -265,6 +267,7 @@ page {
   margin-bottom: 30rpx;
   font-size: 34rpx;
   font-weight: bold;
+  color: #7d5a50;
 }
 
 .form-item {
@@ -274,18 +277,18 @@ page {
 .form-label {
   display: block;
   font-size: 28rpx;
-  color: #666;
+  color: #b5917a;
   margin-bottom: 10rpx;
   font-weight: bold;
 }
 
 .form-input, .form-textarea, .picker {
   width: 100%;
-  border: 1rpx solid #ddd;
+  border: 1rpx solid #ffe0cc;
   border-radius: 8rpx;
   padding: 20rpx;
   font-size: 30rpx;
-  color: #333;
+  color: #7d5a50;
   box-sizing: border-box;
   height: 90rpx;
   display: flex;
@@ -294,7 +297,7 @@ page {
 
 /* 占位符文本样式 */
 .input-placeholder {
-  color: #aaa;
+  color: #b5917a;
   font-size: 30rpx;
   line-height: normal;
 }
@@ -339,7 +342,7 @@ checkbox-group {
   flex-direction: column;
   max-height: 320rpx;
   overflow-y: auto;
-  border: 1px solid #eee;
+  border: 1px solid #ffe0cc;
   border-radius: 8rpx;
   padding: 10rpx 0;
 }
@@ -349,7 +352,7 @@ checkbox-group {
   align-items: center;
   padding: 15rpx 20rpx;
   margin-bottom: 5rpx;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid #fff0e6;
   position: relative;
   z-index: 1;
 }
@@ -365,13 +368,13 @@ checkbox-group {
 
 .checkbox-text {
   font-size: 28rpx;
-  color: #333;
+  color: #7d5a50;
   flex: 1;
 }
 
 .submit-btn {
   margin-top: 40rpx;
-  background: #ff4d4f;
+  background: #ff8f66;
   color: white;
   height: 90rpx;
   line-height: 90rpx;
@@ -381,13 +384,14 @@ checkbox-group {
   display: flex;
   justify-content: center;
   align-items: center;
+  box-shadow: 0 4rpx 12rpx rgba(255, 143, 102, 0.2);
 }
 
 /* 自定义复选框样式 */
 .custom-checkbox {
   width: 40rpx;
   height: 40rpx;
-  border: 2rpx solid #ccc;
+  border: 2rpx solid #ffe0cc;
   border-radius: 6rpx;
   margin-right: 20rpx;
   display: flex;
@@ -399,15 +403,15 @@ checkbox-group {
 }
 
 .custom-checkbox.checked {
-  border-color: #ff4d4f;
-  background-color: rgba(255, 77, 79, 0.1);
+  border-color: #ff8f66;
+  background-color: rgba(255, 143, 102, 0.1);
 }
 
 /* 关联日程复选框样式 */
 .relate-checkbox-group {
   display: flex;
   flex-direction: column;
-  border: 1px solid #eee;
+  border: 1px solid #ffe0cc;
   border-radius: 8rpx;
   padding: 10rpx 0;
   max-height: 100%;
@@ -416,7 +420,7 @@ checkbox-group {
 .relate-checkbox-item {
   padding: 20rpx;
   margin-bottom: 8rpx;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid #fff0e6;
   display: flex;
   align-items: center;
   position: relative;
@@ -424,14 +428,14 @@ checkbox-group {
 }
 
 .relate-checkbox-item:active {
-  background-color: #f0f0f0;
+  background-color: #fff7f0;
 }
 
 /* 添加目标复选框样式 */
 .add-checkbox-group {
   display: flex;
   flex-direction: column;
-  border: 1px solid #eee;
+  border: 1px solid #ffe0cc;
   border-radius: 8rpx;
   padding: 10rpx 0;
   max-height: 100%;
@@ -440,13 +444,13 @@ checkbox-group {
 .add-checkbox-item {
   padding: 20rpx;
   margin-bottom: 8rpx;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid #fff0e6;
   display: flex;
   align-items: center;
 }
 
 .add-checkbox-item:active {
-  background-color: #f0f0f0;
+  background-color: #fff7f0;
 }
 
 /* 可选择的日程项样式 */
@@ -457,18 +461,18 @@ checkbox-group {
   margin-bottom: 10rpx;
   background-color: #fff;
   border-radius: 8rpx;
-  border: 1px solid #eee;
+  border: 1px solid #ffe0cc;
 }
 
 .todo-item-selectable.selected {
-  background-color: rgba(255, 77, 79, 0.05);
-  border-color: #ff4d4f;
+  background-color: rgba(255, 143, 102, 0.05);
+  border-color: #ff8f66;
 }
 
 .checkbox-empty {
   width: 32rpx;
   height: 32rpx;
-  border: 2rpx solid #ccc;
+  border: 2rpx solid #ffe0cc;
   border-radius: 50%;
 }
 
@@ -486,13 +490,13 @@ checkbox-group {
   margin-bottom: 10rpx;
   background-color: #fff;
   border-radius: 8rpx;
-  border: 1px solid #eee;
+  border: 1px solid #ffe0cc;
 }
 
 .checkbox-label {
   margin-left: 20rpx;
   font-size: 28rpx;
-  color: #333;
+  color: #7d5a50;
 }
 
 .related-todo-item {

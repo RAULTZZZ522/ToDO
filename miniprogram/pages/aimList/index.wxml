@@ -40,7 +40,7 @@
           <text>{{item.progress}}%</text>
         </view>
         <view class="progress-bar-container">
-          <view class="progress-bar" style="width: {{item.progress}}"></view>
+          <view class="progress-bar" style="width: {{item.progress}}%"></view>
         </view>
       </view>
       

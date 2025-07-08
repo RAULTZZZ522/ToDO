@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "目标列表"
+  "navigationBarTitleText": "目标列表",
+  "navigationBarBackgroundColor": "#ff8f66",
+  "navigationBarTextStyle": "white"
 } 

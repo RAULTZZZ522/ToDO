@@ -6,7 +6,7 @@
     <view class="user-info" wx:if="{{!hasUserInfo}}">
       <image class="avatar" src="../../images/icons/usercenter.png"></image>
       <text class="nickname">未登录</text>
-      <button class="login-btn" plain="{{false}}" type="primary" bindtap="getUserProfile">微信登录</button>
+      <button class="login-btn" plain="{{false}}" bindtap="getUserProfile">微信登录</button>
     </view>
     
     <!-- 已登录状态 -->

@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "关于应用"
+  "navigationBarTitleText": "关于应用",
+  "navigationBarBackgroundColor": "#ff8f66",
+  "navigationBarTextStyle": "white"
 } 

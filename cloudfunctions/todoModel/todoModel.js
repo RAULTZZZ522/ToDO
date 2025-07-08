@@ -676,7 +676,7 @@ exports.linkTodosToAim = async (event, context) => {
       error: err
     };
   }
-};
+}; 
 
 // 获取截止日期大于当前日期的未完成目标数量
 exports.getUnfinishedAimsCount = async (event, context) => {

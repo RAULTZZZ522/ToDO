@@ -478,17 +478,27 @@ Page({
           // 根据dpr缩放context
           ctx.scale(dpr, dpr);
           
-          // 清空画布
+          // 彻底清空画布 - 确保没有残留内容
           ctx.clearRect(0, 0, width, height);
           
           // 检查是否有数据
           if (noValidData) {
             // 没有有效数据，显示提示文本
+            // 先绘制文字背景以彻底覆盖之前的内容
+            ctx.save();
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            
+            // 设置文本样式
             ctx.font = '14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
             ctx.fillStyle = '#999999';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(`暂无${distributionType === 'day' ? '日' : distributionType === 'week' ? '周' : '月'}数据`, width/2, height/2);
+            
+            // 绘制文本
+            const text = `暂无${distributionType === 'day' ? '日' : distributionType === 'week' ? '周' : '月'}数据`;
+            ctx.fillText(text, width/2, height/2);
+            ctx.restore();
             return;
           }
           
@@ -579,65 +589,41 @@ Page({
               ctx.fillRect(x, y, barWidth, barHeight);
             }
             
-            // 如果数值大于0，在柱子上方显示数值
-            if (item.minutes && item.minutes > 0) {
-              ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-              ctx.fillStyle = '#ff6b6b';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              // 添加小白色背景使数字更清晰
-              const textWidth = ctx.measureText(item.minutes).width;
-              ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-              ctx.fillRect(x + barWidth / 2 - textWidth / 2 - 2, y - 12, textWidth + 4, 16);
-              // 绘制数字
-              ctx.fillStyle = '#ff6b6b';
-              ctx.fillText(item.minutes, x + barWidth / 2, y - 4);
+            // 绘制X轴标签（根据分布类型设置不同的显示间隔）
+            ctx.fillStyle = '#999999';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+            
+            // 根据不同视图类型设置不同的标签显示间隔
+            let shouldShowLabel = false;
+            if (this.data.distributionType === 'day') {
+              // 日视图：每3小时显示一次
+              shouldShowLabel = index % 3 === 0 || index === distributionData.length - 1;
+            } else if (this.data.distributionType === 'month') {
+              // 月视图：每3天显示一次
+              shouldShowLabel = index % 3 === 0 || index === distributionData.length - 1;
+            } else {
+              // 周视图：全部显示
+              shouldShowLabel = true;
             }
             
-            // 绘制文本标签
-            if (item.label) {
-              ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-              ctx.fillStyle = '#666666';
+            if (shouldShowLabel) {
+              const label = item.label || '';
+              ctx.fillText(label, x + barWidth / 2, height - padding + 5);
+            }
+            
+            // 如果有值，在柱子顶部显示数值
+            if (item.minutes && item.minutes > 0) {
+              ctx.fillStyle = '#ff8f66';
               ctx.textAlign = 'center';
-              ctx.textBaseline = 'top';
-              
-              // 根据不同类型调整标签显示策略
-              let label = item.label;
-              
-              // 对于月视图，如果数据点过多，可能需要隐藏部分标签
-              if (distributionType === 'month' && barCount > 15) {
-                // 只显示5天一个标签
-                if (index % 5 !== 0 && index !== barCount - 1) {
-                  label = '';
-                }
-              }
-              
-              // 对于日视图，如果数据点过多，可能需要隐藏部分标签
-              if (distributionType === 'day' && barCount > 12) {
-                // 只显示3小时一个标签
-                if (index % 3 !== 0 && index !== barCount - 1) {
-                  label = '';
-                }
-              }
-              
-              if (label) {
-                ctx.fillText(label, x + barWidth / 2, height - padding + 15);
-              }
+              ctx.textBaseline = 'bottom';
+              ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+              ctx.fillText(item.minutes, x + barWidth / 2, y - 5);
             }
           });
-          
-          // 添加图表标题
-          ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-          ctx.fillStyle = '#7d5a50';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          ctx.fillText(
-            distributionType === 'day' ? '今日专注时长分布' : 
-            distributionType === 'week' ? '本周专注时长分布' : '本月专注时长分布', 
-            width / 2, padding - 20
-          );
         } catch (e) {
-          console.error('绘制图表失败：', e);
+          console.error('绘制图表失败:', e);
         }
       });
   },

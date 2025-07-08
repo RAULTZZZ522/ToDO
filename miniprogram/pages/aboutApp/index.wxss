@@ -1,5 +1,5 @@
 .page {
-  background: #f5f7fa;
+  background: #fffaf5;
   min-height: 100vh;
   padding: 20rpx;
 }
@@ -17,33 +17,35 @@
 .app-name {
   font-size: 36rpx;
   font-weight: bold;
-  color: #333;
+  color: #7d5a50;
 }
 .version {
   font-size: 28rpx;
-  color: #999;
+  color: #b5917a;
   margin-top: 8rpx;
 }
 .section {
   background: #ffffff;
   border-radius: 12rpx;
   overflow: hidden;
+  box-shadow: 0 4rpx 20rpx rgba(255, 180, 140, 0.08);
+  border: 1rpx solid #ffe0cc;
 }
 .item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 32rpx 24rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  border-bottom: 1rpx solid #ffe0cc;
 }
 .item:last-child {
   border-bottom: none;
 }
 .item-text {
   font-size: 30rpx;
-  color: #333;
+  color: #7d5a50;
 }
 .arrow {
   font-size: 30rpx;
-  color: #999;
+  color: #b5917a;
 } 

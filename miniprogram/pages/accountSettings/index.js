@@ -22,7 +22,7 @@ Page({
     wx.showModal({
       title: '退出登录',
       content: '确定要退出当前账号吗？',
-      confirmColor: '#f87c7c',
+      confirmColor: '#ff8f66',
       success: (res) => {
         if (res.confirm) {
           // 同步后端注销

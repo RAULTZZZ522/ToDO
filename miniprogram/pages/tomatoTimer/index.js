@@ -501,7 +501,7 @@ Page({
       ctx.beginPath();
       ctx.setLineWidth(12);
       ctx.setLineCap('round');
-      ctx.setStrokeStyle('rgba(255, 255, 255, 0.3)');
+      ctx.setStrokeStyle('rgba(255, 224, 204, 0.5)'); // 更改为暖色调背景
       ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
       ctx.stroke();
       
@@ -509,7 +509,7 @@ Page({
       ctx.beginPath();
       ctx.setLineWidth(12);
       ctx.setLineCap('round');
-      ctx.setStrokeStyle('#8854d0');
+      ctx.setStrokeStyle('#ff8f66'); // 更改为橙色
       ctx.arc(centerX, centerY, radius, -Math.PI/2, -Math.PI/2 + 2 * Math.PI * percent, false);
       ctx.stroke();
       ctx.draw();

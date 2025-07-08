@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "账号设置"
+  "navigationBarTitleText": "账号设置",
+  "navigationBarBackgroundColor": "#ff8f66",
+  "navigationBarTextStyle": "white"
 }

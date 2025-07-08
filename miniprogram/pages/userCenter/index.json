@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "用户中心"
+  "navigationBarTitleText": "用户中心",
+  "navigationBarBackgroundColor": "#ff8f66",
+  "navigationBarTextStyle": "white"
 } 

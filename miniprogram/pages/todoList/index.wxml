@@ -23,7 +23,7 @@
     </view>
     <view wx:for="{{todos}}" wx:key="_id" class="todo-card {{item.completed ? 'completed' : ''}}" bindtap="showEditModal" data-todo="{{item}}">
       <view class="todo-checkbox" bindtap="toggleComplete" data-id="{{item._id}}" data-completed="{{item.completed}}" catchtap>
-        <icon type="{{item.completed ? 'success' : 'circle'}}" size="20" color="{{item.completed ? '#ff6b6b' : '#888'}}"></icon>
+        <icon type="{{item.completed ? 'success' : 'circle'}}" size="20" color="{{item.completed ? '#ff8f66' : '#b5917a'}}"></icon>
       </view>
       <view class="todo-content">
         <view class="todo-header">
@@ -46,11 +46,11 @@
       </view>
       <view class="todo-actions">
         <view class="todo-action tomato-start-btn" bindtap="startTomato" data-id="{{item._id}}" catchtap>
-          <icon type="waiting" size="16" color="#a084e8"></icon>
+          <icon type="waiting" size="16" color="#ff8f66"></icon>
           <text>开始番茄钟</text>
         </view>
         <view class="todo-action delete-btn" bindtap="deleteTodo" data-id="{{item._id}}" catchtap>
-          <icon type="cancel" size="20" color="#ff6b6b"></icon>
+          <icon type="cancel" size="20" color="#ff8f66"></icon>
         </view>
       </view>
       
