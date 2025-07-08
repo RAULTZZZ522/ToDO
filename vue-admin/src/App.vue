@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import router from './router'
 
 const currentPath = ref('/dashboard')
@@ -24,6 +24,28 @@ const logout = () => {
   localStorage.removeItem('adminOpenId')
   router.push('/login')
 }
+
+// 下拉菜单显隐
+const showDropdown = ref(false)
+const toggleDropdown = () => {
+  showDropdown.value = !showDropdown.value
+}
+
+// 点击其他位置时关闭下拉
+const handleClickOutside = (e) => {
+  // 如果点击目标不在 user-profile 内部则关闭
+  if (!e.target.closest('.user-profile')) {
+    showDropdown.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('click', handleClickOutside)
+})
 </script>
 
 <template>
@@ -36,13 +58,8 @@ const logout = () => {
         </div>
       </div>
       <nav class="menu">
-        <div 
-          v-for="item in menuItems" 
-          :key="item.path" 
-          class="menu-item" 
-          :class="{ active: currentPath === item.path }"
-          @click="navigateTo(item.path)"
-        >
+        <div v-for="item in menuItems" :key="item.path" class="menu-item" :class="{ active: currentPath === item.path }"
+          @click="navigateTo(item.path)">
           <div class="menu-icon" :class="item.icon"></div>
           <span class="menu-title">{{ item.name }}</span>
         </div>
@@ -55,11 +72,11 @@ const logout = () => {
           <h1 class="page-title">管理后台</h1>
         </div>
         <div class="header-right">
-          <div class="user-profile">
+          <div class="user-profile" @click.stop="toggleDropdown">
             <div class="avatar">管</div>
             <span class="username">管理员</span>
             <!-- 下拉菜单 -->
-            <div class="dropdown">
+            <div class="dropdown" v-show="showDropdown" @click.stop>
               <div class="dropdown-item" @click.stop="logout">退出登录</div>
             </div>
           </div>
@@ -251,10 +268,21 @@ body {
 }
 
 /* 模拟图标 */
-.icon-dashboard::before { content: "📊"; }
-.icon-user::before { content: "👥"; }
-.icon-todo::before { content: "📝"; }
-.icon-clock::before { content: "⏱️"; }
+.icon-dashboard::before {
+  content: "📊";
+}
+
+.icon-user::before {
+  content: "👥";
+}
+
+.icon-todo::before {
+  content: "📝";
+}
+
+.icon-clock::before {
+  content: "⏱️";
+}
 
 /* 确保 user-profile 相对定位以放置 dropdown */
 .user-profile {
@@ -263,10 +291,10 @@ body {
 
 .dropdown {
   position: absolute;
-  top: 48px;
+  top: calc(100% + 4px);
   right: 0;
   background: var(--card-color);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   border-radius: 4px;
   min-width: 120px;
   z-index: 20;
@@ -289,6 +317,6 @@ body {
 }
 
 .dropdown-item:hover {
-  background: rgba(0,0,0,0.05);
+  background: rgba(0, 0, 0, 0.05);
 }
 </style>

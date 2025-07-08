@@ -85,7 +85,18 @@ const loadPomodoros = async () => {
         ...pomo,
         // 统一字段名，兼容不同版本
         starttime: pomo.starttime || pomo.startTime,
-        endtime: pomo.endtime || pomo.endTime,
+        // 结束时间 = 开始时间 + duration
+        endtime: (() => {
+          const start = pomo.starttime || pomo.startTime;
+          const dur = parseInt(pomo.duration || pomo.durationMinutes || pomo.tomatoDuration || 0);
+          if (start && !isNaN(dur) && dur > 0) {
+            try {
+              const endMs = new Date(start).getTime() + dur * 60000;
+              return new Date(endMs).toISOString();
+            } catch { }
+          }
+          return pomo.endtime || pomo.endTime;
+        })(),
         todo_title: pomo.todo_title || pomo.title || '未知任务',
         userNickname: pomo.userNickname || pomo._openid || '未知用户',
       };
@@ -340,8 +351,6 @@ onMounted(() => {
           </table>
         </div>
 
-
-
         <div class="pomodoro-detail" v-if="currentPomodoro">
           <div class="detail-header">
             <h2>番茄钟详情</h2>
@@ -404,7 +413,6 @@ onMounted(() => {
             </div>
           </div>
         </div>
-
       </div>
       <!-- 分页导航 -->
       <div class="pagination" v-if="filteredPomodoros.length > 0">
