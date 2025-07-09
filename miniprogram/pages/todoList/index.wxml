@@ -53,13 +53,6 @@
           <icon type="cancel" size="20" color="#ff8f66"></icon>
         </view>
       </view>
-      
-      <!-- 番茄钟完成次数显示在右下角 -->
-      <view class="tomato-counter" wx:if="{{item.tomatoCount > 0 || item.tomatoTotalTime > 0}}">
-        <text class="tomato-emoji">🍅</text>
-        <text class="tomato-count-text">{{item.tomatoCount || 0}}</text>
-        <text class="tomato-time-text" wx:if="{{item.tomatoTotalTime > 0}}">{{item.tomatoTotalTime}}分钟</text>
-      </view>
     </view>
   </view>
 

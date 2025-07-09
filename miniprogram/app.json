@@ -26,19 +26,27 @@
     "list": [
       {
         "pagePath": "pages/todoList/index",
-        "text": "日程"
+        "text": "日程",
+        "iconPath": "assets/tabbar/todo.png",
+        "selectedIconPath": "assets/tabbar/todo-active.png"
       },
       {
         "pagePath": "pages/aimList/index",
-        "text": "目标"
+        "text": "目标",
+        "iconPath": "assets/tabbar/aim.png",
+        "selectedIconPath": "assets/tabbar/aim-active.png"
       },
       {
         "pagePath": "pages/statistics/index",
-        "text": "统计"
+        "text": "统计",
+        "iconPath": "assets/tabbar/stat.png",
+        "selectedIconPath": "assets/tabbar/stat-active.png"
       },
       {
         "pagePath": "pages/userCenter/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "assets/tabbar/user.png",
+        "selectedIconPath": "assets/tabbar/user-active.png"
       }
     ]
   }
